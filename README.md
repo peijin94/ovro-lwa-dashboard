@@ -32,15 +32,6 @@ The production frontend is built with the `/dashboard/` base path. On `ovsa`,
 the FastAPI service listens only on `127.0.0.1:9528`, while Apache exposes it at
 `https://ovsa.njit.edu/dashboard/`.
 
-```apache
-ProxyPass        /dashboard/ http://127.0.0.1:9528/
-ProxyPassReverse /dashboard/ http://127.0.0.1:9528/
-<Location /dashboard/>
-    Require all granted
-    ProxyPreserveHost On
-</Location>
-```
-
 Start or restart the app in its `tmux` session:
 
 ```bash
@@ -49,7 +40,7 @@ tmux new-session -d -s dashboard \
 ```
 
 The idempotent `deploy/install-apache-route.sh` helper backs up the active SSL
-virtual host, adds the proxy block above, validates the configuration, and only
+virtual host, installs the required route, validates the configuration, and only
 then reloads Apache. It must be run with `sudo` on `ovsa`.
 
 ## Configuration
