@@ -1,0 +1,25 @@
+[Unit]
+Description=OVRO-LWA Solar Dashboard
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=peijin
+Group=peijin
+WorkingDirectory=/home/peijin/ovro-lwa-dashboard
+Environment=PYTHONUNBUFFERED=1
+Environment=LIVE_SPECTRUM_URL=http://127.0.0.1:9527
+ExecStart=/home/peijin/ovro-lwa-dashboard/.venv/bin/uvicorn backend.main:app --host 127.0.0.1 --port 9528
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=20
+KillSignal=SIGINT
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=read-only
+UMask=0027
+
+[Install]
+WantedBy=multi-user.target

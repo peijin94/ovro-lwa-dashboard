@@ -32,11 +32,12 @@ The production frontend is built with the `/dashboard/` base path. On `ovsa`,
 the FastAPI service listens only on `127.0.0.1:9528`, while Apache exposes it at
 `https://ovsa.njit.edu/dashboard/`.
 
-Start or restart the app in its `tmux` session:
+Install the included systemd unit, then enable and start the service:
 
 ```bash
-tmux new-session -d -s dashboard \
-  'cd /home/peijin/ovro-lwa-dashboard && exec .venv/bin/uvicorn backend.main:app --host 127.0.0.1 --port 9528'
+sudo install -m 0644 deploy/ovro-dashboard.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now ovro-dashboard.service
 ```
 
 The idempotent `deploy/install-apache-route.sh` helper backs up the active SSL
