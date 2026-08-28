@@ -147,11 +147,11 @@ def _format_goes_payload(records: List[Dict[str, Any]]) -> Dict[str, Any]:
 
 @app.get("/api/goes/xray")
 async def goes_xray() -> JSONResponse:
-    """Return normalized, cached GOES X-ray flux for the last 24 hours."""
+    """Return normalized GOES X-ray flux with a short shared upstream cache."""
     now = time.monotonic()
     if _goes_cache["payload"] is not None and now < _goes_cache["expires"]:
         return JSONResponse(
-            _goes_cache["payload"], headers={"Cache-Control": "public, max-age=30"}
+            _goes_cache["payload"], headers={"Cache-Control": "no-store"}
         )
 
     async with _goes_lock:
@@ -161,10 +161,10 @@ async def goes_xray() -> JSONResponse:
             if not isinstance(records, list):
                 raise HTTPException(status_code=502, detail="Invalid GOES response")
             _goes_cache["payload"] = _format_goes_payload(records)
-            _goes_cache["expires"] = now + 60.0
+            _goes_cache["expires"] = now + 8.0
 
     return JSONResponse(
-        _goes_cache["payload"], headers={"Cache-Control": "public, max-age=30"}
+        _goes_cache["payload"], headers={"Cache-Control": "no-store"}
     )
 
 

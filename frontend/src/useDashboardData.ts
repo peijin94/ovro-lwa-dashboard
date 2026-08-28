@@ -10,13 +10,15 @@ import {
 
 const MAX_FRAMES = 600;
 const MID_CHANNEL = 384;
+const GOES_XRAY_POLL_INTERVAL_MS = 10_000;
+const GOES_IMAGE_REFRESH_INTERVAL_MS = 5 * 60_000;
 
 export function useDashboardData() {
   const [frames, setFrames] = useState<SpectrumFrame[]>([]);
   const [goes, setGoes] = useState<GoesPayload | null>(null);
   const [events, setEvents] = useState<EventPayload | null>(null);
   const [health, setHealth] = useState<HealthPayload | null>(null);
-  const [goesRefreshToken, setGoesRefreshToken] = useState(() => Date.now());
+  const [goesImageRefreshToken, setGoesImageRefreshToken] = useState(() => Date.now());
   const [lastFrameAt, setLastFrameAt] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [frameCount, setFrameCount] = useState(0);
@@ -91,19 +93,28 @@ export function useDashboardData() {
         const payload = await fetchJson<GoesPayload>('/api/goes/xray');
         if (cancelled) return;
         setGoes(payload);
-        // Updating this token reloads the SUVI image in the same refresh cycle.
-        setGoesRefreshToken(Date.now());
       } catch {
         // Keep the last successful GOES snapshot visible until the next cycle.
       }
     }
 
     void refreshGoesData();
-    const timer = window.setInterval(() => void refreshGoesData(), 5 * 60_000);
+    const timer = window.setInterval(
+      () => void refreshGoesData(),
+      GOES_XRAY_POLL_INTERVAL_MS,
+    );
     return () => {
       cancelled = true;
       window.clearInterval(timer);
     };
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setInterval(
+      () => setGoesImageRefreshToken(Date.now()),
+      GOES_IMAGE_REFRESH_INTERVAL_MS,
+    );
+    return () => window.clearInterval(timer);
   }, []);
 
   const lightCurve = useMemo(
@@ -119,7 +130,7 @@ export function useDashboardData() {
     frames,
     lightCurve,
     goes,
-    goesRefreshToken,
+    goesImageRefreshToken,
     events,
     health,
     lastFrameAt,
