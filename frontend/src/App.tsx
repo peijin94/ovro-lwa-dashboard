@@ -53,6 +53,7 @@ function App() {
     frames,
     lightCurve,
     goes,
+    goesRefreshToken,
     events,
     health,
     lastFrameAt,
@@ -185,7 +186,7 @@ function App() {
               <GoesChart points={goes?.points ?? []} />
               <div className="panel-footer">
                 <span>Source: NOAA SWPC</span>
-                <span>Current class: <b>{currentGoesClass}</b></span>
+                <span>Current class: <b>{currentGoesClass}</b> · Sync: 5 min</span>
               </div>
             </article>
           </div>
@@ -208,7 +209,10 @@ function App() {
             <article className="panel image-panel goes-image-panel">
               <PanelHeader eyebrow="GOES / SUVI · 195 Å" title="Latest Solar Image" meta="Near real time" />
               <div className="goes-image-wrap">
-                <img src={apiUrl('/api/goes/image')} alt="Latest GOES SUVI 195 angstrom image of the Sun" />
+                <img
+                  src={`${apiUrl('/api/goes/image')}?v=${goesRefreshToken}`}
+                  alt="Latest GOES SUVI 195 angstrom image of the Sun"
+                />
                 <div className="image-crosshair horizontal" />
                 <div className="image-crosshair vertical" />
                 <span className="image-live-badge"><i /> NOAA LIVE</span>

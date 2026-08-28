@@ -16,6 +16,7 @@ export function useDashboardData() {
   const [goes, setGoes] = useState<GoesPayload | null>(null);
   const [events, setEvents] = useState<EventPayload | null>(null);
   const [health, setHealth] = useState<HealthPayload | null>(null);
+  const [goesRefreshToken, setGoesRefreshToken] = useState(() => Date.now());
   const [lastFrameAt, setLastFrameAt] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [frameCount, setFrameCount] = useState(0);
@@ -64,20 +65,41 @@ export function useDashboardData() {
   useEffect(() => {
     let cancelled = false;
 
-    async function pollSlowData() {
+    async function pollOperationalData() {
       const results = await Promise.allSettled([
-        fetchJson<GoesPayload>('/api/goes/xray'),
         fetchJson<EventPayload>('/api/events'),
         fetchJson<HealthPayload>('/api/health'),
       ]);
       if (cancelled) return;
-      if (results[0].status === 'fulfilled') setGoes(results[0].value);
-      if (results[1].status === 'fulfilled') setEvents(results[1].value);
-      if (results[2].status === 'fulfilled') setHealth(results[2].value);
+      if (results[0].status === 'fulfilled') setEvents(results[0].value);
+      if (results[1].status === 'fulfilled') setHealth(results[1].value);
     }
 
-    void pollSlowData();
-    const timer = window.setInterval(() => void pollSlowData(), 30_000);
+    void pollOperationalData();
+    const timer = window.setInterval(() => void pollOperationalData(), 30_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function refreshGoesData() {
+      try {
+        const payload = await fetchJson<GoesPayload>('/api/goes/xray');
+        if (cancelled) return;
+        setGoes(payload);
+        // Updating this token reloads the SUVI image in the same refresh cycle.
+        setGoesRefreshToken(Date.now());
+      } catch {
+        // Keep the last successful GOES snapshot visible until the next cycle.
+      }
+    }
+
+    void refreshGoesData();
+    const timer = window.setInterval(() => void refreshGoesData(), 5 * 60_000);
     return () => {
       cancelled = true;
       window.clearInterval(timer);
@@ -97,6 +119,7 @@ export function useDashboardData() {
     frames,
     lightCurve,
     goes,
+    goesRefreshToken,
     events,
     health,
     lastFrameAt,
