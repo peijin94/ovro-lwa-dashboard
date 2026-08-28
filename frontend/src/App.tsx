@@ -177,7 +177,7 @@ function App() {
               <PanelHeader
                 eyebrow="NOAA SPACE WEATHER"
                 title="GOES X-Ray Flux"
-                meta={`Primary satellite GOES-${goes?.satellite ?? '—'} · 24 hours`}
+                meta={`Primary satellite GOES-${goes?.satellite ?? '—'} · Last 300 s`}
               />
               <div className="legend">
                 <span><i className="legend-line short" /> 0.5–4 Å</span>

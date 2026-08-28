@@ -54,13 +54,21 @@ export function GoesChart({ points }: GoesChartProps) {
         context.fillText(name, left - 9 * dpr, y);
       });
 
-      const labels = ['−24h', '−18h', '−12h', '−6h', 'Now'];
+      const labels = ['−300s', '−200s', '−100s', 'Now'];
       context.fillStyle = '#7f8ba3';
       context.textAlign = 'center';
       context.textBaseline = 'top';
       labels.forEach((label, index) => {
-        const x = left + (index / 4) * plotW;
+        const x = left + (index / (labels.length - 1)) * plotW;
         context.fillText(label, x, top + plotH + 9 * dpr);
+      });
+
+      const now = Date.now();
+      const windowMs = 300_000;
+      const windowStart = now - windowMs;
+      const visiblePoints = points.filter((point) => {
+        const timestamp = Date.parse(point.time);
+        return timestamp >= windowStart && timestamp <= now;
       });
 
       const series = [
@@ -70,10 +78,11 @@ export function GoesChart({ points }: GoesChartProps) {
       series.forEach(({ key, color }) => {
         context.beginPath();
         let started = false;
-        points.forEach((point, index) => {
+        visiblePoints.forEach((point) => {
           const flux = point[key];
           if (!flux || flux <= 0) return;
-          const x = left + (index / Math.max(points.length - 1, 1)) * plotW;
+          const timestamp = Date.parse(point.time);
+          const x = left + ((timestamp - windowStart) / windowMs) * plotW;
           const logFlux = Math.max(-9, Math.min(-3, Math.log10(flux)));
           const y = top + ((-3 - logFlux) / 6) * plotH;
           if (!started) {
@@ -97,7 +106,7 @@ export function GoesChart({ points }: GoesChartProps) {
     <canvas
       ref={canvasRef}
       className="chart-canvas goes-canvas"
-      aria-label="GOES X-ray flux for the last 24 hours"
+      aria-label="GOES X-ray flux for the last 300 seconds"
     />
   );
 }
