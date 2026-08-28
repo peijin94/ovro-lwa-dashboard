@@ -177,7 +177,7 @@ function App() {
               <PanelHeader
                 eyebrow="NOAA SPACE WEATHER"
                 title="GOES X-Ray Flux"
-                meta={`Primary satellite GOES-${goes?.satellite ?? '—'} · Last 300 s`}
+                meta={`Primary satellite GOES-${goes?.satellite ?? '—'} · Last 30 min`}
               />
               <div className="legend">
                 <span><i className="legend-line short" /> 0.5–4 Å</span>
@@ -186,7 +186,7 @@ function App() {
               <GoesChart points={goes?.points ?? []} />
               <div className="panel-footer">
                 <span>Source: NOAA SWPC</span>
-                <span>Current class: <b>{currentGoesClass}</b> · Refresh: 10 s</span>
+                <span>Current class: <b>{currentGoesClass}</b> · Refresh: 30 s</span>
               </div>
             </article>
           </div>

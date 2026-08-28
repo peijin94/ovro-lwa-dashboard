@@ -161,7 +161,7 @@ async def goes_xray() -> JSONResponse:
             if not isinstance(records, list):
                 raise HTTPException(status_code=502, detail="Invalid GOES response")
             _goes_cache["payload"] = _format_goes_payload(records)
-            _goes_cache["expires"] = now + 8.0
+            _goes_cache["expires"] = now + 25.0
 
     return JSONResponse(
         _goes_cache["payload"], headers={"Cache-Control": "no-store"}

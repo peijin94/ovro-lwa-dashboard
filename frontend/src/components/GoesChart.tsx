@@ -30,6 +30,10 @@ export function GoesChart({ points }: GoesChartProps) {
       const bottom = 30 * dpr;
       const plotW = width - left - right;
       const plotH = height - top - bottom;
+      const now = Date.now();
+      const windowMs = 30 * 60_000;
+      const recentWindowMs = 300_000;
+      const windowStart = now - windowMs;
       context.clearRect(0, 0, width, height);
       context.font = `${9 * dpr}px ui-monospace, SFMono-Regular, monospace`;
 
@@ -54,7 +58,27 @@ export function GoesChart({ points }: GoesChartProps) {
         context.fillText(name, left - 9 * dpr, y);
       });
 
-      const labels = ['−300s', '−200s', '−100s', 'Now'];
+      const recentStartX = left + ((windowMs - recentWindowMs) / windowMs) * plotW;
+      context.fillStyle = 'rgba(85, 217, 246, 0.055)';
+      context.fillRect(recentStartX, top, left + plotW - recentStartX, plotH);
+      context.strokeStyle = 'rgba(85, 217, 246, 0.55)';
+      context.lineWidth = dpr;
+      context.setLineDash([4 * dpr, 4 * dpr]);
+      context.beginPath();
+      context.moveTo(recentStartX, top);
+      context.lineTo(recentStartX, top + plotH);
+      context.stroke();
+      context.setLineDash([]);
+      context.fillStyle = '#55d9f6';
+      context.textAlign = 'center';
+      context.textBaseline = 'top';
+      context.fillText(
+        '−300 s → now',
+        recentStartX + (left + plotW - recentStartX) / 2,
+        top + 5 * dpr,
+      );
+
+      const labels = ['−30m', '−20m', '−10m', 'Now'];
       context.fillStyle = '#7f8ba3';
       context.textAlign = 'center';
       context.textBaseline = 'top';
@@ -63,9 +87,6 @@ export function GoesChart({ points }: GoesChartProps) {
         context.fillText(label, x, top + plotH + 9 * dpr);
       });
 
-      const now = Date.now();
-      const windowMs = 300_000;
-      const windowStart = now - windowMs;
       const visiblePoints = points.filter((point) => {
         const timestamp = Date.parse(point.time);
         return timestamp >= windowStart && timestamp <= now;
@@ -106,7 +127,7 @@ export function GoesChart({ points }: GoesChartProps) {
     <canvas
       ref={canvasRef}
       className="chart-canvas goes-canvas"
-      aria-label="GOES X-ray flux for the last 300 seconds"
+      aria-label="GOES X-ray flux for the last 30 minutes, with the most recent 300 seconds indicated"
     />
   );
 }

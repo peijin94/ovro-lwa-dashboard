@@ -10,7 +10,7 @@ import {
 
 const MAX_FRAMES = 600;
 const MID_CHANNEL = 384;
-const GOES_XRAY_POLL_INTERVAL_MS = 10_000;
+const GOES_XRAY_POLL_INTERVAL_MS = 30_000;
 const GOES_IMAGE_REFRESH_INTERVAL_MS = 5 * 60_000;
 
 export function useDashboardData() {
