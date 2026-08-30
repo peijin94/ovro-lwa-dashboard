@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { apiUrl, fluxClass } from './api';
 import { DynamicSpectrum } from './components/DynamicSpectrum';
 import { GoesChart } from './components/GoesChart';
@@ -45,10 +45,12 @@ function PanelHeader({
   eyebrow,
   title,
   meta,
+  action,
 }: {
   eyebrow: string;
   title: string;
   meta?: string;
+  action?: ReactNode;
 }) {
   return (
     <div className="panel-header">
@@ -56,7 +58,12 @@ function PanelHeader({
         <p className="eyebrow">{eyebrow}</p>
         <h2>{title}</h2>
       </div>
-      {meta && <span className="panel-meta">{meta}</span>}
+      {(meta || action) && (
+        <div className="panel-header-controls">
+          {meta && <span className="panel-meta">{meta}</span>}
+          {action}
+        </div>
+      )}
     </div>
   );
 }
@@ -74,6 +81,8 @@ function App() {
     ephemeris,
     lastFrameAt,
     frameCount,
+    syncSpectrum,
+    spectrumSyncing,
   } = useDashboardData();
   const currentGoesClass = fluxClass(goes?.current_flux ?? null);
   const peakGoesClass = fluxClass(goes?.peak_flux ?? null);
@@ -177,6 +186,17 @@ function App() {
                 eyebrow="OVRO–LWA · STOKES I"
                 title="Live Dynamic Spectrum"
                 meta={`15–85 MHz · ${formatUtc(lastFrameAt)}`}
+                action={(
+                  <button
+                    className="sync-button"
+                    type="button"
+                    onClick={() => void syncSpectrum()}
+                    disabled={spectrumSyncing}
+                    aria-label="Synchronize the five-minute spectrum buffer"
+                  >
+                    {spectrumSyncing ? 'Syncing…' : 'Sync'}
+                  </button>
+                )}
               />
               <DynamicSpectrum frames={frames} />
               <div className="panel-footer">

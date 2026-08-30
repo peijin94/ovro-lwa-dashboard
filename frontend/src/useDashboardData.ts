@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   fetchJson,
   type EphemerisPayload,
@@ -27,11 +27,29 @@ export function useDashboardData() {
   const [lastFrameAt, setLastFrameAt] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [frameCount, setFrameCount] = useState(0);
+  const [spectrumSyncing, setSpectrumSyncing] = useState(false);
+
+  const syncSpectrum = useCallback(async () => {
+    setSpectrumSyncing(true);
+    try {
+      const payload = await fetchJson<SpectrumHistory>(
+        '/api/spectrum/history?n_frames=600',
+      );
+      setFrames(payload.data.filter((frame) => frame.length === 768));
+      setFrameCount(payload.data.length);
+      setLastFrameAt(new Date());
+      setError(null);
+    } catch {
+      setError('Waiting for spectrum stream');
+    } finally {
+      setSpectrumSyncing(false);
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
 
-    async function loadHistory() {
+    async function loadInitialHistory() {
       try {
         const payload = await fetchJson<SpectrumHistory>(
           '/api/spectrum/history?n_frames=600',
@@ -46,6 +64,14 @@ export function useDashboardData() {
       }
     }
 
+    void loadInitialHistory();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
     async function pollFrame() {
       try {
         const frame = await fetchJson<SpectrumFrame>(
@@ -61,7 +87,6 @@ export function useDashboardData() {
       }
     }
 
-    void loadHistory();
     const timer = window.setInterval(() => void pollFrame(), 512);
     return () => {
       cancelled = true;
@@ -168,5 +193,7 @@ export function useDashboardData() {
     lastFrameAt,
     frameCount,
     error,
+    syncSpectrum,
+    spectrumSyncing,
   };
 }
