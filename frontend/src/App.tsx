@@ -98,7 +98,7 @@ function App() {
           </span>
           <span className="brand-copy">
             <strong>OVRO–LWA</strong>
-            <small>Solar Monitor</small>
+            <small>Solar Radio Monitor</small>
           </span>
         </a>
         <div className="header-status">
@@ -264,7 +264,7 @@ function App() {
       </main>
 
       <footer>
-        <span>OVRO–LWA Solar Monitor</span>
+        <span>OVRO–LWA Solar Radio Monitor</span>
         <span>Data are preliminary and intended for monitoring.</span>
       </footer>
     </div>

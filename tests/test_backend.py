@@ -122,7 +122,7 @@ class ApiTests(unittest.TestCase):
     def test_built_frontend_is_served(self) -> None:
         response = self.client.get("/")
         self.assertEqual(response.status_code, 200)
-        self.assertIn("OVRO-LWA Solar Monitor", response.text)
+        self.assertIn("OVRO-LWA Solar Radio Monitor", response.text)
 
 
 if __name__ == "__main__":
