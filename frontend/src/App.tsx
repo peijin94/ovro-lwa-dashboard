@@ -4,6 +4,7 @@ import { DynamicSpectrum } from './components/DynamicSpectrum';
 import { GoesChart } from './components/GoesChart';
 import { LightCurve } from './components/LightCurve';
 import { shouldShowSunBanner, SUN_BANNER_ELEVATION_DEG } from './sun';
+import { radioFluxAt } from './units';
 import { useDashboardData } from './useDashboardData';
 
 function useUtcClock() {
@@ -26,6 +27,18 @@ function formatUtc(date: Date | null, includeDate = false) {
     timeZone: 'UTC',
     timeZoneName: 'short',
   }).format(date);
+}
+
+function formatSfu(value: number | null) {
+  if (value === null || !Number.isFinite(value)) return '—';
+  if (value >= 100) return value.toFixed(0);
+  if (value >= 10) return value.toFixed(1);
+  return value.toFixed(2);
+}
+
+function formatProbability(probability: number | undefined) {
+  if (probability === undefined || !Number.isFinite(probability)) return '—';
+  return `${Math.round(probability * 100)}%`;
 }
 
 function PanelHeader({
@@ -55,23 +68,22 @@ function App() {
     lightCurve,
     goes,
     goesImageRefreshToken,
-    events,
+    flareNowcast,
+    flareUpdatedAt,
     health,
     ephemeris,
     lastFrameAt,
     frameCount,
-    error,
   } = useDashboardData();
   const currentGoesClass = fluxClass(goes?.current_flux ?? null);
   const peakGoesClass = fluxClass(goes?.peak_flux ?? null);
   const currentFlux = lightCurve.at(-1);
-  const typeThreeCount = useMemo(
-    () =>
-      events?.detections.filter((event) =>
-        (event.class ?? '').toLowerCase().includes('iii'),
-      ).length ?? 0,
-    [events],
+  const radioFlux40 = useMemo(
+    () => frames.map((frame) => radioFluxAt(frame, 40)).filter((value) => value > 0),
+    [frames],
   );
+  const currentRadioFlux40 = radioFlux40.at(-1) ?? null;
+  const peakRadioFlux40 = radioFlux40.length ? Math.max(...radioFlux40) : null;
   const isLive = health?.live_spectrum || frames.length > 0;
   const showSunBanner = shouldShowSunBanner(ephemeris?.elevation_deg ?? null);
 
@@ -126,36 +138,49 @@ function App() {
 
         <section className="metric-grid" aria-label="Current activity summary">
           <article className="metric-card accent-yellow">
-            <p>Last 24 hours</p>
-            <div className="metric-main">
-              <strong>{peakGoesClass}</strong>
-              <span>Peak GOES class</span>
+            <p>40 MHz Radio Flux</p>
+            <div className="metric-readouts">
+              <div className="metric-readout">
+                <strong>{formatSfu(peakRadioFlux40)} <em>s.f.u.</em></strong>
+                <span><b>Peak</b> · Last 5 min</span>
+              </div>
+              <div className="metric-readout">
+                <strong>{formatSfu(currentRadioFlux40)} <em>s.f.u.</em></strong>
+                <span><b>Now</b></span>
+              </div>
             </div>
-            <small>1–8 Å soft X-ray flux</small>
+            <small>{lastFrameAt ? `Updated ${formatUtc(lastFrameAt)}` : 'Waiting for radio stream'}</small>
           </article>
           <article className="metric-card accent-cyan">
-            <p>Right now</p>
-            <div className="metric-main">
-              <strong>{currentGoesClass}</strong>
-              <span>GOES X-ray class</span>
+            <p>X-Ray Flux · GOES X-Ray Class</p>
+            <div className="metric-readouts">
+              <div className="metric-readout">
+                <strong>{peakGoesClass}</strong>
+                <span><b>Peak</b> · Last 24 hrs</span>
+              </div>
+              <div className="metric-readout">
+                <strong>{currentGoesClass}</strong>
+                <span><b>Now</b></span>
+              </div>
             </div>
             <small>{goes?.updated ? `Updated ${formatUtc(new Date(goes.updated))}` : 'Loading NOAA feed'}</small>
           </article>
-          <article className="metric-card accent-orange">
-            <p>Radio bursts</p>
-            <div className="metric-main">
-              <strong>{typeThreeCount}</strong>
-              <span>Type III now</span>
+          <article className="metric-card accent-orange nowcast-card">
+            <p>Flare Nowcast</p>
+            <div className="forecast-list">
+              <div><strong>R1</strong><span><b>{formatProbability(flareNowcast?.['>M1']?.probability)}</b> &gt;M1 flare possibility</span></div>
+              <div><strong>R2</strong><span><b>{formatProbability(flareNowcast?.['>M5']?.probability)}</b> &gt;M5 flare possibility</span></div>
+              <div><strong>R3</strong><span><b>{formatProbability(flareNowcast?.['>X1']?.probability)}</b> &gt;X1 flare possibility</span></div>
             </div>
-            <small>{events ? `${events.count} total current detections` : 'Detection feed loading'}</small>
+            <small>{flareUpdatedAt ? `Updated ${formatUtc(flareUpdatedAt)}` : 'Waiting for OVSA nowcast'}</small>
           </article>
           <article className="metric-card accent-green">
-            <p>Array status</p>
-            <div className="metric-main status-main">
-              <strong>{isLive ? 'ONLINE' : 'WAIT'}</strong>
-              <span>Live stream</span>
+            <p>Radio Burst Detections</p>
+            <div className="metric-main">
+              <strong>0</strong>
+              <span>bursts</span>
             </div>
-            <small>{error ?? `${frames.length} frames in view`}</small>
+            <small>Detection feed placeholder</small>
           </article>
         </section>
 

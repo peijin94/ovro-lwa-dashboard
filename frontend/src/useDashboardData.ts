@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   fetchJson,
   type EphemerisPayload,
-  type EventPayload,
+  type FlareNowcastPayload,
   type GoesPayload,
   type HealthPayload,
   type SpectrumFrame,
@@ -13,12 +13,14 @@ import { janskyToSfu } from './units';
 const MAX_FRAMES = 600;
 const MID_CHANNEL = 384;
 const GOES_XRAY_POLL_INTERVAL_MS = 30_000;
+const FLARE_NOWCAST_POLL_INTERVAL_MS = 30_000;
 const GOES_IMAGE_REFRESH_INTERVAL_MS = 5 * 60_000;
 
 export function useDashboardData() {
   const [frames, setFrames] = useState<SpectrumFrame[]>([]);
   const [goes, setGoes] = useState<GoesPayload | null>(null);
-  const [events, setEvents] = useState<EventPayload | null>(null);
+  const [flareNowcast, setFlareNowcast] = useState<FlareNowcastPayload | null>(null);
+  const [flareUpdatedAt, setFlareUpdatedAt] = useState<Date | null>(null);
   const [health, setHealth] = useState<HealthPayload | null>(null);
   const [ephemeris, setEphemeris] = useState<EphemerisPayload | null>(null);
   const [goesImageRefreshToken, setGoesImageRefreshToken] = useState(() => Date.now());
@@ -72,18 +74,41 @@ export function useDashboardData() {
 
     async function pollOperationalData() {
       const results = await Promise.allSettled([
-        fetchJson<EventPayload>('/api/events'),
         fetchJson<HealthPayload>('/api/health'),
         fetchJson<EphemerisPayload>('/api/ephemeris'),
       ]);
       if (cancelled) return;
-      if (results[0].status === 'fulfilled') setEvents(results[0].value);
-      if (results[1].status === 'fulfilled') setHealth(results[1].value);
-      if (results[2].status === 'fulfilled') setEphemeris(results[2].value);
+      if (results[0].status === 'fulfilled') setHealth(results[0].value);
+      if (results[1].status === 'fulfilled') setEphemeris(results[1].value);
     }
 
     void pollOperationalData();
     const timer = window.setInterval(() => void pollOperationalData(), 30_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function refreshFlareNowcast() {
+      try {
+        const payload = await fetchJson<FlareNowcastPayload>('/api/flare/nowcast');
+        if (cancelled) return;
+        setFlareNowcast(payload);
+        setFlareUpdatedAt(new Date());
+      } catch {
+        // Retain the last successful forecast while the stream or model recovers.
+      }
+    }
+
+    void refreshFlareNowcast();
+    const timer = window.setInterval(
+      () => void refreshFlareNowcast(),
+      FLARE_NOWCAST_POLL_INTERVAL_MS,
+    );
     return () => {
       cancelled = true;
       window.clearInterval(timer);
@@ -136,7 +161,8 @@ export function useDashboardData() {
     lightCurve,
     goes,
     goesImageRefreshToken,
-    events,
+    flareNowcast,
+    flareUpdatedAt,
     health,
     ephemeris,
     lastFrameAt,

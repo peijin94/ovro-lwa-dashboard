@@ -49,6 +49,25 @@ export interface EphemerisPayload {
   updated: string | null;
 }
 
+export interface FlareProbability {
+  probability: number;
+  p_low: number;
+  p_high: number;
+  n_total: number;
+  feature_sfu: number;
+}
+
+export interface FlareNowcastPayload {
+  feature_sfu: number | null;
+  horizon_min: number;
+  '>M1': FlareProbability | null;
+  '>M5': FlareProbability | null;
+  '>X1': FlareProbability | null;
+  frequencies_mhz: number[];
+  model_version: string;
+  created_utc: string;
+}
+
 export function apiUrl(path: string): string {
   const prefix = import.meta.env.BASE_URL.replace(/\/$/, '');
   return `${prefix}${path}`.replace(/\/{2,}/g, '/');

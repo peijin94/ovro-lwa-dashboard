@@ -58,6 +58,16 @@ class EphemerisPayloadTests(unittest.TestCase):
         self.assertEqual(payload["updated"], "2026-08-30T03:40:04+00:00")
 
 
+class RadioFluxTests(unittest.TestCase):
+    def test_extracts_normalized_40_60_80_mhz_fluxes(self) -> None:
+        frame = [0.0] * 768
+        frame[268] = 240_000
+        frame[476] = 480_000
+        frame[685] = 720_000
+
+        self.assertEqual(main._radio_flux3ch(frame), [1.0, 2.0, 3.0])
+
+
 class ApiTests(unittest.TestCase):
     def setUp(self) -> None:
         self.client = TestClient(main.app)
@@ -82,6 +92,32 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["elevation_deg"], 9.5)
         self.assertEqual(response.headers["cache-control"], "no-store")
+
+    def test_flare_nowcast_uses_current_normalized_radio_flux(self) -> None:
+        frame = [0.0] * 768
+        frame[268] = 240_000
+        frame[476] = 480_000
+        frame[685] = 720_000
+        forecast = {
+            "feature_sfu": 2.0,
+            "horizon_min": 5.0,
+            ">M1": {"probability": 0.7},
+            ">M5": {"probability": 0.3},
+            ">X1": {"probability": 0.1},
+        }
+        with (
+            patch.object(main, "_get_json", AsyncMock(return_value=frame)),
+            patch.object(main, "_post_json", AsyncMock(return_value=forecast)) as post,
+        ):
+            response = self.client.get("/api/flare/nowcast")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()[">M1"]["probability"], 0.7)
+        post.assert_awaited_once_with(
+            main.FLARE_NOWCAST_URL,
+            {"flux3ch": [1.0, 2.0, 3.0]},
+            timeout=15.0,
+        )
 
     def test_built_frontend_is_served(self) -> None:
         response = self.client.get("/")

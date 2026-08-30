@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import math
 import os
 import re
 import time
@@ -31,6 +32,11 @@ GOES_IMAGE_URL = os.environ.get(
 EPHEMERIS_URL = os.environ.get(
     "EPHEMERIS_URL", "https://ovsa.njit.edu/api/ephm/info"
 )
+FLARE_NOWCAST_URL = os.environ.get(
+    "FLARE_NOWCAST_URL", "https://ovsa.njit.edu/api/flare/nowcast"
+)
+STREAM_JY_PER_SFU = 10_000 * 24
+RADIO_CHANNELS = {40: 268, 60: 476, 80: 685}
 
 app = FastAPI(
     title="OVRO-LWA Solar Dashboard",
@@ -79,6 +85,22 @@ async def _get_text(url: str, *, timeout: float = 10.0) -> str:
             response.raise_for_status()
             return response.text
     except httpx.HTTPError as exc:
+        raise HTTPException(
+            status_code=502, detail=f"Upstream data source unavailable: {type(exc).__name__}"
+        ) from exc
+
+
+async def _post_json(
+    url: str, payload: Dict[str, Any], *, timeout: float = 10.0
+) -> Any:
+    try:
+        async with httpx.AsyncClient(
+            timeout=httpx.Timeout(timeout), follow_redirects=True
+        ) as client:
+            response = await client.post(url, json=payload)
+            response.raise_for_status()
+            return response.json()
+    except (httpx.HTTPError, ValueError) as exc:
         raise HTTPException(
             status_code=502, detail=f"Upstream data source unavailable: {type(exc).__name__}"
         ) from exc
@@ -148,6 +170,38 @@ async def spectrum_history(
 async def events() -> JSONResponse:
     """Return current burst detections from SunSpecStreamSys."""
     payload = await _get_json(f"{LIVE_SPECTRUM_URL}/type3detect", timeout=5.0)
+    return JSONResponse(payload, headers={"Cache-Control": "no-store"})
+
+
+def _radio_flux3ch(frame: List[Any]) -> List[float]:
+    if len(frame) <= max(RADIO_CHANNELS.values()):
+        raise ValueError("Spectrum frame does not contain the required channels")
+
+    fluxes = []
+    for frequency in (40, 60, 80):
+        value = frame[RADIO_CHANNELS[frequency]]
+        if not isinstance(value, (int, float)) or not math.isfinite(value):
+            raise ValueError(f"Invalid {frequency} MHz spectrum value")
+        fluxes.append(float(value) / STREAM_JY_PER_SFU)
+    return fluxes
+
+
+@app.get("/api/flare/nowcast")
+async def flare_nowcast() -> JSONResponse:
+    """Evaluate the OVRO-LWA flare model using the current 40/60/80 MHz flux."""
+    frame = await _get_json(f"{LIVE_SPECTRUM_URL}/data", timeout=5.0)
+    if not isinstance(frame, list):
+        raise HTTPException(status_code=502, detail="Invalid live spectrum response")
+    try:
+        flux3ch = _radio_flux3ch(frame)
+    except ValueError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+    payload = await _post_json(
+        FLARE_NOWCAST_URL, {"flux3ch": flux3ch}, timeout=15.0
+    )
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=502, detail="Invalid flare nowcast response")
     return JSONResponse(payload, headers={"Cache-Control": "no-store"})
 
 
