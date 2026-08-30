@@ -7,6 +7,7 @@ import {
   type SpectrumFrame,
   type SpectrumHistory,
 } from './api';
+import { janskyToSfu } from './units';
 
 const MAX_FRAMES = 600;
 const MID_CHANNEL = 384;
@@ -121,7 +122,7 @@ export function useDashboardData() {
     () =>
       frames.map((frame) => {
         const value = frame[MID_CHANNEL] ?? 0;
-        return value > 0 ? 10 * Math.log10(value) : 0;
+        return value > 0 ? janskyToSfu(value) : 0;
       }),
     [frames],
   );

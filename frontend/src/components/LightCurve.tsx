@@ -4,6 +4,11 @@ interface LightCurveProps {
   values: number[];
 }
 
+function formatSfuTick(value: number): string {
+  if (value >= 0.01 && value < 1_000) return value.toLocaleString('en-US');
+  return value.toExponential(0);
+}
+
 export function LightCurve({ values }: LightCurveProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -37,23 +42,33 @@ export function LightCurve({ values }: LightCurveProps) {
       context.lineWidth = dpr;
 
       const finite = values.filter((value) => Number.isFinite(value) && value > 0);
-      let min = finite.length ? Math.min(...finite) : 40;
-      let max = finite.length ? Math.max(...finite) : 70;
-      const padding = Math.max((max - min) * 0.15, 1);
-      min -= padding;
-      max += padding;
+      const minValue = finite.length ? Math.min(...finite) : 1;
+      const maxValue = finite.length ? Math.max(...finite) : 100;
+      const minExponent = Math.floor(Math.log10(minValue));
+      let maxExponent = Math.ceil(Math.log10(maxValue));
+      if (maxExponent <= minExponent) maxExponent = minExponent + 1;
+      const exponentSpan = maxExponent - minExponent;
+      const tickStep = Math.max(1, Math.ceil(exponentSpan / 4));
+      const tickExponents: number[] = [];
+      for (
+        let exponent = minExponent;
+        exponent <= maxExponent;
+        exponent += tickStep
+      ) {
+        tickExponents.push(exponent);
+      }
+      if (tickExponents.at(-1) !== maxExponent) tickExponents.push(maxExponent);
 
       context.textAlign = 'right';
       context.textBaseline = 'middle';
-      for (let index = 0; index <= 3; index += 1) {
-        const y = top + (index / 3) * plotH;
-        const label = max - (index / 3) * (max - min);
+      tickExponents.forEach((exponent) => {
+        const y = top + ((maxExponent - exponent) / exponentSpan) * plotH;
         context.beginPath();
         context.moveTo(left, y);
         context.lineTo(left + plotW, y);
         context.stroke();
-        context.fillText(label.toFixed(0), left - 8 * dpr, y);
-      }
+        context.fillText(formatSfuTick(10 ** exponent), left - 8 * dpr, y);
+      });
 
       context.textAlign = 'center';
       context.textBaseline = 'top';
@@ -64,11 +79,19 @@ export function LightCurve({ values }: LightCurveProps) {
 
       if (values.length < 2) return;
       context.beginPath();
+      let started = false;
       values.forEach((value, index) => {
+        if (!Number.isFinite(value) || value <= 0) {
+          started = false;
+          return;
+        }
         const x = left + (index / (values.length - 1)) * plotW;
-        const y = top + ((max - value) / (max - min)) * plotH;
-        if (index === 0) context.moveTo(x, y);
-        else context.lineTo(x, y);
+        const logValue = Math.log10(value);
+        const y = top + ((maxExponent - logValue) / exponentSpan) * plotH;
+        if (!started) {
+          context.moveTo(x, y);
+          started = true;
+        } else context.lineTo(x, y);
       });
       const gradient = context.createLinearGradient(left, 0, left + plotW, 0);
       gradient.addColorStop(0, '#2e8ca7');
@@ -89,7 +112,7 @@ export function LightCurve({ values }: LightCurveProps) {
     <canvas
       ref={canvasRef}
       className="chart-canvas lightcurve-canvas"
-      aria-label="Live 50 megahertz light curve for the last 300 seconds"
+      aria-label="Live 50 megahertz light curve in solar flux units on a logarithmic scale for the last 300 seconds"
     />
   );
 }

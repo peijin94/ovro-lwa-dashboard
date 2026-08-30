@@ -62,7 +62,7 @@ function App() {
   } = useDashboardData();
   const currentGoesClass = fluxClass(goes?.current_flux ?? null);
   const peakGoesClass = fluxClass(goes?.peak_flux ?? null);
-  const currentPower = lightCurve.at(-1);
+  const currentFlux = lightCurve.at(-1);
   const typeThreeCount = useMemo(
     () =>
       events?.detections.filter((event) =>
@@ -164,12 +164,12 @@ function App() {
               <PanelHeader
                 eyebrow="MIDDLE CHANNEL"
                 title="Live Light Curve"
-                meta="50.0 MHz · Relative power (dB)"
+                meta="50.0 MHz · Flux density (s.f.u.) · Log scale"
               />
               <LightCurve values={lightCurve} />
               <div className="panel-footer">
                 <span><i className="status-dot cyan" /> Channel 384 / 768</span>
-                <span>Current: {currentPower ? `${currentPower.toFixed(1)} dB` : '—'}</span>
+                <span>Current: {currentFlux ? `${currentFlux.toFixed(2)} s.f.u.` : '—'}</span>
               </div>
             </article>
 
