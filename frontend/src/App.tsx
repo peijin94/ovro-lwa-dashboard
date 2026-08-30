@@ -3,6 +3,7 @@ import { apiUrl, fluxClass } from './api';
 import { DynamicSpectrum } from './components/DynamicSpectrum';
 import { GoesChart } from './components/GoesChart';
 import { LightCurve } from './components/LightCurve';
+import { shouldShowSunBanner, SUN_BANNER_ELEVATION_DEG } from './sun';
 import { useDashboardData } from './useDashboardData';
 
 function useUtcClock() {
@@ -56,6 +57,7 @@ function App() {
     goesImageRefreshToken,
     events,
     health,
+    ephemeris,
     lastFrameAt,
     frameCount,
     error,
@@ -71,6 +73,7 @@ function App() {
     [events],
   );
   const isLive = health?.live_spectrum || frames.length > 0;
+  const showSunBanner = shouldShowSunBanner(ephemeris?.elevation_deg ?? null);
 
   return (
     <div className="app-shell">
@@ -95,6 +98,18 @@ function App() {
       </header>
 
       <main>
+        {showSunBanner && (
+          <section className="sun-status-banner" role="status" aria-live="polite">
+            <span className="sun-status-icon" aria-hidden="true">☼</span>
+            <div>
+              <strong>The Sun is not up yet for OVRO</strong>
+              <small>
+                Solar elevation {ephemeris?.elevation_deg.toFixed(1)}° · Banner clears at{' '}
+                {SUN_BANNER_ELEVATION_DEG}°
+              </small>
+            </div>
+          </section>
+        )}
         <section className="intro-row">
           <div>
             <p className="section-kicker">Owens Valley Radio Observatory</p>

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   fetchJson,
+  type EphemerisPayload,
   type EventPayload,
   type GoesPayload,
   type HealthPayload,
@@ -19,6 +20,7 @@ export function useDashboardData() {
   const [goes, setGoes] = useState<GoesPayload | null>(null);
   const [events, setEvents] = useState<EventPayload | null>(null);
   const [health, setHealth] = useState<HealthPayload | null>(null);
+  const [ephemeris, setEphemeris] = useState<EphemerisPayload | null>(null);
   const [goesImageRefreshToken, setGoesImageRefreshToken] = useState(() => Date.now());
   const [lastFrameAt, setLastFrameAt] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -72,10 +74,12 @@ export function useDashboardData() {
       const results = await Promise.allSettled([
         fetchJson<EventPayload>('/api/events'),
         fetchJson<HealthPayload>('/api/health'),
+        fetchJson<EphemerisPayload>('/api/ephemeris'),
       ]);
       if (cancelled) return;
       if (results[0].status === 'fulfilled') setEvents(results[0].value);
       if (results[1].status === 'fulfilled') setHealth(results[1].value);
+      if (results[2].status === 'fulfilled') setEphemeris(results[2].value);
     }
 
     void pollOperationalData();
@@ -134,6 +138,7 @@ export function useDashboardData() {
     goesImageRefreshToken,
     events,
     health,
+    ephemeris,
     lastFrameAt,
     frameCount,
     error,

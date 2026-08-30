@@ -73,6 +73,32 @@ a { color: inherit; }
 .utc-clock { color: #aeb7c8; font: 500 11px ui-monospace, SFMono-Regular, monospace; letter-spacing: .06em; }
 
 main { padding: 56px 0 46px; }
+.sun-status-banner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 0 0 28px;
+  padding: 14px 18px;
+  border: 1px solid rgba(244, 211, 94, .34);
+  border-radius: 8px;
+  background: linear-gradient(90deg, rgba(244, 211, 94, .12), rgba(255, 157, 92, .05));
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .15);
+}
+.sun-status-icon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  border: 1px solid rgba(244, 211, 94, .4);
+  border-radius: 50%;
+  color: var(--yellow);
+  font-size: 22px;
+  background: rgba(244, 211, 94, .08);
+}
+.sun-status-banner div { display: flex; flex-direction: column; gap: 4px; }
+.sun-status-banner strong { color: #f6e7ac; font-size: 13px; letter-spacing: .01em; }
+.sun-status-banner small { color: #9c9273; font: 500 9px ui-monospace, monospace; letter-spacing: .04em; }
 .intro-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 36px; }
 .section-kicker, .eyebrow { margin: 0 0 9px; color: var(--cyan); font: 700 10px ui-monospace, SFMono-Regular, monospace; letter-spacing: .16em; text-transform: uppercase; }
 .intro-copy { max-width: 650px; margin: 0; color: #8994a9; line-height: 1.6; font-size: 14px; }

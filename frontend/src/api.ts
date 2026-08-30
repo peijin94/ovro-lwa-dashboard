@@ -40,6 +40,15 @@ export interface HealthPayload {
   timestamp: number;
 }
 
+export interface EphemerisPayload {
+  elevation_deg: number;
+  azimuth_deg: number;
+  sun_up: boolean | null;
+  sunrise: string | null;
+  sunset: string | null;
+  updated: string | null;
+}
+
 export function apiUrl(path: string): string {
   const prefix = import.meta.env.BASE_URL.replace(/\/$/, '');
   return `${prefix}${path}`.replace(/\/{2,}/g, '/');
@@ -65,4 +74,3 @@ export function fluxClass(flux: number | null): string {
   const band = bands.find(({ base }) => flux >= base) ?? bands[4];
   return `${band.letter}${Math.max(flux / band.base, 0.1).toFixed(1)}`;
 }
-

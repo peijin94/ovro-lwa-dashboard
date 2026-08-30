@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import re
 import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -26,6 +27,9 @@ GOES_XRAY_URL = os.environ.get(
 GOES_IMAGE_URL = os.environ.get(
     "GOES_IMAGE_URL",
     "https://services.swpc.noaa.gov/images/animations/suvi/primary/195/latest.png",
+)
+EPHEMERIS_URL = os.environ.get(
+    "EPHEMERIS_URL", "https://ovsa.njit.edu/api/ephm/info"
 )
 
 app = FastAPI(
@@ -64,6 +68,42 @@ async def _get_json(url: str, *, timeout: float = 10.0) -> Any:
         raise HTTPException(
             status_code=502, detail=f"Upstream data source unavailable: {type(exc).__name__}"
         ) from exc
+
+
+async def _get_text(url: str, *, timeout: float = 10.0) -> str:
+    try:
+        async with httpx.AsyncClient(
+            timeout=httpx.Timeout(timeout), follow_redirects=True
+        ) as client:
+            response = await client.get(url)
+            response.raise_for_status()
+            return response.text
+    except httpx.HTTPError as exc:
+        raise HTTPException(
+            status_code=502, detail=f"Upstream data source unavailable: {type(exc).__name__}"
+        ) from exc
+
+
+def _parse_ephemeris_info(raw: str) -> Dict[str, Any]:
+    def required_float(field: str) -> float:
+        match = re.search(rf"(?:^|\s){field}=([+-]?\d+(?:\.\d+)?)deg(?:\s|$)", raw)
+        if not match:
+            raise ValueError(f"Missing ephemeris field: {field}")
+        return float(match.group(1))
+
+    def optional_field(field: str) -> Optional[str]:
+        match = re.search(rf"(?:^|\s){field}=([^\s]+)", raw)
+        return match.group(1) if match else None
+
+    sun_up = optional_field("sunup")
+    return {
+        "elevation_deg": required_float("alt"),
+        "azimuth_deg": required_float("az"),
+        "sun_up": sun_up == "1" if sun_up is not None else None,
+        "sunrise": optional_field("sunrise"),
+        "sunset": optional_field("sunset"),
+        "updated": optional_field("time"),
+    }
 
 
 @app.get("/api/health")
@@ -108,6 +148,17 @@ async def spectrum_history(
 async def events() -> JSONResponse:
     """Return current burst detections from SunSpecStreamSys."""
     payload = await _get_json(f"{LIVE_SPECTRUM_URL}/type3detect", timeout=5.0)
+    return JSONResponse(payload, headers={"Cache-Control": "no-store"})
+
+
+@app.get("/api/ephemeris")
+async def ephemeris() -> JSONResponse:
+    """Return normalized OVRO Sun position from the shared ephemeris API."""
+    raw = await _get_text(EPHEMERIS_URL, timeout=5.0)
+    try:
+        payload = _parse_ephemeris_info(raw)
+    except ValueError as exc:
+        raise HTTPException(status_code=502, detail="Invalid ephemeris response") from exc
     return JSONResponse(payload, headers={"Cache-Control": "no-store"})
 
 
