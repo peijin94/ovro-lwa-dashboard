@@ -117,11 +117,14 @@ main { padding: 56px 0 46px; }
 .metric-readout strong em { color: #7d8799; font: 600 8px ui-monospace, monospace; letter-spacing: .02em; }
 .metric-readout span { display: block; margin-top: 8px; color: #778297; font-size: 9px; }
 .metric-readout span b { color: #c4ccd8; font-weight: 700; }
-.forecast-list { display: grid; gap: 7px; }
-.forecast-list div { display: grid; grid-template-columns: 27px 1fr; align-items: baseline; gap: 7px; }
-.forecast-list strong { color: var(--accent); font: 800 10px ui-monospace, monospace; letter-spacing: .06em; }
+.forecast-list { display: grid; gap: 6px; }
+.forecast-list div { display: grid; grid-template-columns: 31px 1fr; align-items: center; gap: 9px; }
+.forecast-list strong { display: grid; min-height: 25px; place-items: center; border-radius: 4px; color: #fff; font: 900 12px ui-monospace, monospace; letter-spacing: .03em; text-shadow: 0 1px 2px rgba(0,0,0,.3); }
+.forecast-list div:nth-child(1) strong { background: #b58a16; }
+.forecast-list div:nth-child(2) strong { background: #d76522; }
+.forecast-list div:nth-child(3) strong { background: #bf3948; }
 .forecast-list span { color: #8792a5; font-size: 9px; white-space: nowrap; }
-.forecast-list span b { display: inline-block; min-width: 29px; color: #dce1e9; font-size: 11px; }
+.forecast-list span b { display: inline-block; min-width: 40px; color: #f3f5f8; font-size: 16px; line-height: 1; }
 .accent-yellow { --accent: var(--yellow); }
 .accent-cyan { --accent: var(--cyan); }
 .accent-orange { --accent: var(--orange); }
