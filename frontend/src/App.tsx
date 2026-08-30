@@ -122,20 +122,6 @@ function App() {
             </div>
           </section>
         )}
-        <section className="intro-row">
-          <div>
-            <p className="section-kicker">Owens Valley Radio Observatory</p>
-            <p className="intro-copy">
-              Real-time low-frequency radio observations paired with operational
-              space-weather measurements.
-            </p>
-          </div>
-          <div className="source-tags" aria-label="Data sources">
-            <span>OVRO–LWA</span>
-            <span>NOAA GOES-{goes?.satellite ?? '—'}</span>
-          </div>
-        </section>
-
         <section className="metric-grid" aria-label="Current activity summary">
           <article className="metric-card accent-yellow">
             <p>40 MHz Radio Flux</p>
