@@ -1,9 +1,14 @@
+import asyncio
 import unittest
+from datetime import datetime, timezone
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from unittest.mock import AsyncMock, patch
 
 from fastapi.testclient import TestClient
 
 from backend import main
+from backend.flare_records import FlareRecordStore
 
 
 class GoesPayloadTests(unittest.TestCase):
@@ -68,6 +73,87 @@ class RadioFluxTests(unittest.TestCase):
         self.assertEqual(main._radio_flux3ch(frame), [1.0, 2.0, 3.0])
 
 
+class FlareRecordStoreTests(unittest.TestCase):
+    def test_persists_and_filters_recent_probability_records(self) -> None:
+        with TemporaryDirectory() as directory:
+            store = FlareRecordStore(Path(directory) / "flarecast_record.sqlite3")
+            store.initialize()
+            store.append("2026-09-10T18:59:59.000Z", 0.1, 0.05, 0.01)
+            store.append("2026-09-10T19:15:00.000Z", 0.7, 0.3, 0.1)
+
+            points = store.recent(
+                30,
+                now=datetime(2026, 9, 10, 19, 30, tzinfo=timezone.utc),
+            )
+
+        self.assertEqual(points, [
+            {
+                "timeUT": "2026-09-10T19:15:00.000Z",
+                "R1p": 0.7,
+                "R2p": 0.3,
+                "R3p": 0.1,
+            }
+        ])
+
+
+class FlareRecorderTests(unittest.IsolatedAsyncioTestCase):
+    async def test_blocking_work_is_compatible_without_asyncio_to_thread(self) -> None:
+        with patch.object(asyncio, "to_thread", None, create=True):
+            result = await main._run_blocking(lambda value: value + 1, 41)
+
+        self.assertEqual(result, 42)
+
+    async def test_records_nowcast_only_while_sun_is_up(self) -> None:
+        forecast = {
+            ">M1": {"probability": 0.7},
+            ">M5": {"probability": 0.3},
+            ">X1": {"probability": 0.1},
+        }
+        with TemporaryDirectory() as directory:
+            store = FlareRecordStore(Path(directory) / "flarecast_record.sqlite3")
+            store.initialize()
+            with (
+                patch.object(main, "flare_record_store", store),
+                patch.object(main, "_latest_flare_nowcast", None),
+                patch.object(
+                    main,
+                    "_get_text",
+                    AsyncMock(return_value="time=x alt=12.0deg az=100.0deg sunup=1"),
+                ),
+                patch.object(
+                    main,
+                    "_fetch_current_flare_nowcast",
+                    AsyncMock(return_value=forecast),
+                ),
+                patch.object(main, "_utc_now_text", return_value="2026-09-10T19:30:00.000Z"),
+            ):
+                recorded = await main._record_current_flare_probability()
+
+            points = store.recent(
+                30,
+                now=datetime(2026, 9, 10, 19, 31, tzinfo=timezone.utc),
+            )
+
+        self.assertTrue(recorded)
+        self.assertEqual(len(points), 1)
+        self.assertEqual(points[0]["R1p"], 0.7)
+
+    async def test_skips_nowcast_query_while_sun_is_down(self) -> None:
+        nowcast = AsyncMock()
+        with (
+            patch.object(
+                main,
+                "_get_text",
+                AsyncMock(return_value="time=x alt=-0.1deg az=280.0deg sunup=0"),
+            ),
+            patch.object(main, "_fetch_current_flare_nowcast", nowcast),
+        ):
+            recorded = await main._record_current_flare_probability()
+
+        self.assertFalse(recorded)
+        nowcast.assert_not_awaited()
+
+
 class ApiTests(unittest.TestCase):
     def setUp(self) -> None:
         self.client = TestClient(main.app)
@@ -108,6 +194,7 @@ class ApiTests(unittest.TestCase):
         with (
             patch.object(main, "_get_json", AsyncMock(return_value=frame)),
             patch.object(main, "_post_json", AsyncMock(return_value=forecast)) as post,
+            patch.object(main, "_latest_flare_nowcast", None),
         ):
             response = self.client.get("/api/flare/nowcast")
 
@@ -118,6 +205,36 @@ class ApiTests(unittest.TestCase):
             {"flux3ch": [1.0, 2.0, 3.0]},
             timeout=15.0,
         )
+
+    def test_flare_history_returns_database_records(self) -> None:
+        with TemporaryDirectory() as directory:
+            store = FlareRecordStore(Path(directory) / "flarecast_record.sqlite3")
+            store.initialize()
+            store.append(main._utc_now_text(), 0.7, 0.3, 0.1)
+            with patch.object(main, "flare_record_store", store):
+                response = self.client.get("/api/flare/history?minutes=30")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["window_minutes"], 30)
+        self.assertEqual(response.json()["points"][0]["R1p"], 0.7)
+
+    def test_flare_nowcast_returns_recorder_cache_without_database_read(self) -> None:
+        cached = {
+            ">M1": {"probability": 0.7},
+            ">M5": {"probability": 0.3},
+            ">X1": {"probability": 0.1},
+            "recorded_at": "2026-09-10T19:30:00.000Z",
+        }
+        fetch = AsyncMock()
+        with (
+            patch.object(main, "_latest_flare_nowcast", cached),
+            patch.object(main, "_fetch_current_flare_nowcast", fetch),
+        ):
+            response = self.client.get("/api/flare/nowcast")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["recorded_at"], cached["recorded_at"])
+        fetch.assert_not_awaited()
 
     def test_built_frontend_is_served(self) -> None:
         response = self.client.get("/")

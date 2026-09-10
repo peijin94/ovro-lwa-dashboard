@@ -66,6 +66,19 @@ export interface FlareNowcastPayload {
   frequencies_mhz: number[];
   model_version: string;
   created_utc: string;
+  recorded_at?: string;
+}
+
+export interface FlareProbabilityRecord {
+  timeUT: string;
+  R1p: number;
+  R2p: number;
+  R3p: number;
+}
+
+export interface FlareProbabilityHistory {
+  points: FlareProbabilityRecord[];
+  window_minutes: number;
 }
 
 export function apiUrl(path: string): string {

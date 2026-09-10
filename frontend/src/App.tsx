@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { apiUrl, fluxClass } from './api';
 import { DynamicSpectrum } from './components/DynamicSpectrum';
+import { FlareProbabilityChart } from './components/FlareProbabilityChart';
 import { GoesChart } from './components/GoesChart';
 import { LightCurve } from './components/LightCurve';
 import { shouldShowSunBanner, SUN_BANNER_ELEVATION_DEG } from './sun';
@@ -77,6 +78,7 @@ function App() {
     goesImageRefreshToken,
     flareNowcast,
     flareUpdatedAt,
+    flareProbabilityPoints,
     health,
     ephemeris,
     lastFrameAt,
@@ -233,6 +235,26 @@ function App() {
               <div className="panel-footer">
                 <span>Source: NOAA SWPC</span>
                 <span>Current class: <b>{currentGoesClass}</b> · Refresh: 30 s</span>
+              </div>
+            </article>
+
+            <article className="panel probability-panel">
+              <PanelHeader
+                eyebrow="OVRO–LWA FLARE NOWCAST"
+                title="Flare Probability"
+                meta="R1 >M1 · R2 >M5 · R3 >X1 · Last 30 min"
+              />
+              <div className="legend probability-legend">
+                <span><i className="legend-line probability-r1" /> R1 · &gt;M1</span>
+                <span><i className="legend-line probability-r2" /> R2 · &gt;M5</span>
+                <span><i className="legend-line probability-r3" /> R3 · &gt;X1</span>
+              </div>
+              <FlareProbabilityChart points={flareProbabilityPoints} />
+              <div className="panel-footer">
+                <span>{flareProbabilityPoints.length} probability records in view</span>
+                <span>
+                  Horizon: {flareNowcast?.horizon_min ?? '—'} min · Refresh: 10 s
+                </span>
               </div>
             </article>
           </div>

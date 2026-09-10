@@ -9,6 +9,7 @@ public NOAA GOES data.
 - OVRO-LWA 15–85 MHz rolling dynamic spectrum (300 seconds)
 - 50 MHz live light curve derived from the middle spectrum channel
 - NOAA GOES primary-satellite X-ray flux and current flare class
+- Thirty-minute R1/R2/R3 flare-probability history with 10-second live updates
 - Latest NOAA GOES/SUVI 195 Å solar image
 - Reserved placeholder for the future live OVRO-LWA image pipeline
 - Current OVRO-LWA Type III detection status
@@ -51,3 +52,18 @@ then reloads Apache. It must be run with `sudo` on `ovsa`.
 | `LIVE_SPECTRUM_URL` | `http://127.0.0.1:9527` | Existing SunSpecStreamSys service |
 | `GOES_XRAY_URL` | NOAA primary 1-day feed | GOES X-ray JSON source |
 | `GOES_IMAGE_URL` | NOAA primary SUVI 195 Å image | Latest solar image source |
+| `EPHEMERIS_URL` | `https://ovsa.njit.edu/api/ephm/info` | Sun-up state used by the recorder |
+| `FLARE_NOWCAST_URL` | `https://ovsa.njit.edu/api/flare/nowcast` | OVRO-LWA flare nowcast API |
+| `FLARECAST_DB_PATH` | `data/flarecast_record.sqlite3` | SQLite probability-record database |
+
+## Flare probability records
+
+While the Sun is above the OVRO horizon, the backend queries the flare nowcast
+every 10 seconds and stores `timeUT`, `R1p`, `R2p`, and `R3p` in the
+`flarecast_record` SQLite table. The production systemd unit keeps the database
+at `/var/lib/ovro-dashboard/flarecast_record.sqlite3` using `StateDirectory`, so
+records survive application deployments and service restarts.
+
+`GET /api/flare/history?minutes=30` returns the initial plot window. After that
+one database read, each open browser appends live `/api/flare/nowcast` results
+to its in-memory 30-minute series every 10 seconds.

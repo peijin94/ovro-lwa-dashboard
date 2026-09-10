@@ -3,17 +3,20 @@ import {
   fetchJson,
   type EphemerisPayload,
   type FlareNowcastPayload,
+  type FlareProbabilityHistory,
+  type FlareProbabilityRecord,
   type GoesPayload,
   type HealthPayload,
   type SpectrumFrame,
   type SpectrumHistory,
 } from './api';
+import { mergeProbabilityRecords, nowcastToProbabilityRecord } from './flareProbability';
 import { janskyToSfu } from './units';
 
 const MAX_FRAMES = 600;
 const MID_CHANNEL = 384;
 const GOES_XRAY_POLL_INTERVAL_MS = 30_000;
-const FLARE_NOWCAST_POLL_INTERVAL_MS = 30_000;
+const FLARE_NOWCAST_POLL_INTERVAL_MS = 10_000;
 const GOES_IMAGE_REFRESH_INTERVAL_MS = 5 * 60_000;
 
 export function useDashboardData() {
@@ -21,6 +24,7 @@ export function useDashboardData() {
   const [goes, setGoes] = useState<GoesPayload | null>(null);
   const [flareNowcast, setFlareNowcast] = useState<FlareNowcastPayload | null>(null);
   const [flareUpdatedAt, setFlareUpdatedAt] = useState<Date | null>(null);
+  const [flareProbabilityPoints, setFlareProbabilityPoints] = useState<FlareProbabilityRecord[]>([]);
   const [health, setHealth] = useState<HealthPayload | null>(null);
   const [ephemeris, setEphemeris] = useState<EphemerisPayload | null>(null);
   const [goesImageRefreshToken, setGoesImageRefreshToken] = useState(() => Date.now());
@@ -118,12 +122,43 @@ export function useDashboardData() {
   useEffect(() => {
     let cancelled = false;
 
+    async function loadFlareHistory() {
+      try {
+        const payload = await fetchJson<FlareProbabilityHistory>(
+          '/api/flare/history?minutes=30',
+        );
+        if (cancelled) return;
+        const nowMs = Date.now();
+        setFlareProbabilityPoints((current) =>
+          mergeProbabilityRecords(current, payload.points, nowMs),
+        );
+      } catch {
+        // Live points can still populate the panel if persisted history is unavailable.
+      }
+    }
+
+    void loadFlareHistory();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
     async function refreshFlareNowcast() {
       try {
         const payload = await fetchJson<FlareNowcastPayload>('/api/flare/nowcast');
         if (cancelled) return;
         setFlareNowcast(payload);
-        setFlareUpdatedAt(new Date());
+        const point = nowcastToProbabilityRecord(payload);
+        if (point) {
+          const pointTime = new Date(point.timeUT);
+          setFlareUpdatedAt(pointTime);
+          setFlareProbabilityPoints((current) =>
+            mergeProbabilityRecords(current, [point], pointTime.getTime()),
+          );
+        }
       } catch {
         // Retain the last successful forecast while the stream or model recovers.
       }
@@ -188,6 +223,7 @@ export function useDashboardData() {
     goesImageRefreshToken,
     flareNowcast,
     flareUpdatedAt,
+    flareProbabilityPoints,
     health,
     ephemeris,
     lastFrameAt,

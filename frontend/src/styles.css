@@ -12,6 +12,7 @@
   --cyan: #55d9f6;
   --yellow: #f4d35e;
   --orange: #ff9d5c;
+  --red: #ff5869;
   --green: #56d39b;
 }
 
@@ -146,6 +147,7 @@ main { padding: 56px 0 46px; }
 .spectrum-canvas { height: 341px; }
 .lightcurve-canvas { height: 195px; }
 .goes-canvas { height: 260px; }
+.probability-canvas { height: 260px; }
 .panel-footer { min-height: 41px; display: flex; justify-content: space-between; align-items: center; gap: 18px; padding: 10px 20px; color: #657187; border-top: 1px solid rgba(56,65,83,.52); font: 500 9px ui-monospace, monospace; letter-spacing: .04em; }
 .panel-footer b { color: var(--yellow); }
 .status-dot { margin-right: 5px; }
@@ -154,6 +156,9 @@ main { padding: 56px 0 46px; }
 .legend-line { display: inline-block; width: 18px; height: 2px; margin: 0 5px 3px 0; }
 .legend-line.short { background: var(--cyan); }
 .legend-line.long { background: var(--yellow); }
+.legend-line.probability-r1 { background: var(--yellow); }
+.legend-line.probability-r2 { background: var(--orange); }
+.legend-line.probability-r3 { background: var(--red); }
 
 .placeholder-panel { min-height: 462px; }
 .image-placeholder { position: relative; min-height: 386px; padding: 38px; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; text-align: center; background: radial-gradient(circle at 50% 48%, rgba(40,74,100,.23), transparent 42%), #080b12; }

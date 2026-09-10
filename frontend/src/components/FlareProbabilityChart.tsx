@@ -1,12 +1,12 @@
 import { useEffect, useRef } from 'react';
-import type { GoesPoint } from '../api';
+import type { FlareProbabilityRecord } from '../api';
 import { CHART_TIME_LABELS, CHART_WINDOW_MS, RECENT_WINDOW_MS } from '../chartTime';
 
-interface GoesChartProps {
-  points: GoesPoint[];
+interface FlareProbabilityChartProps {
+  points: FlareProbabilityRecord[];
 }
 
-export function GoesChart({ points }: GoesChartProps) {
+export function FlareProbabilityChart({ points }: FlareProbabilityChartProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -15,55 +15,43 @@ export function GoesChart({ points }: GoesChartProps) {
     const context = canvas.getContext('2d');
     if (!context) return;
 
-    function draw(
-      canvas: HTMLCanvasElement,
-      context: CanvasRenderingContext2D,
-    ) {
+    function draw(canvas: HTMLCanvasElement, context: CanvasRenderingContext2D) {
       const rect = canvas.getBoundingClientRect();
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
       canvas.width = Math.max(1, Math.floor(rect.width * dpr));
       canvas.height = Math.max(1, Math.floor(rect.height * dpr));
       const width = canvas.width;
       const height = canvas.height;
-      const left = 48 * dpr;
+      const left = 52 * dpr;
       const right = 20 * dpr;
       const top = 16 * dpr;
       const bottom = 30 * dpr;
       const plotW = width - left - right;
       const plotH = height - top - bottom;
       const now = Date.now();
-      const windowMs = CHART_WINDOW_MS;
-      const recentWindowMs = RECENT_WINDOW_MS;
-      const windowStart = now - windowMs;
+      const windowStart = now - CHART_WINDOW_MS;
+
       context.clearRect(0, 0, width, height);
       context.font = `${9 * dpr}px ui-monospace, SFMono-Regular, monospace`;
 
-      const classBands = [
-        { name: 'X', exponent: -4, color: '#ff6363' },
-        { name: 'M', exponent: -5, color: '#ff9d5c' },
-        { name: 'C', exponent: -6, color: '#f4d35e' },
-        { name: 'B', exponent: -7, color: '#56d39b' },
-        { name: 'A', exponent: -8, color: '#55b8f6' },
-      ];
-      classBands.forEach(({ name, exponent, color }) => {
-        const y = top + ((-3 - exponent) / 6) * plotH;
+      [0, 25, 50, 75, 100].forEach((percent) => {
+        const y = top + (1 - percent / 100) * plotH;
         context.strokeStyle = '#202634';
         context.lineWidth = dpr;
         context.beginPath();
         context.moveTo(left, y);
         context.lineTo(left + plotW, y);
         context.stroke();
-        context.fillStyle = color;
+        context.fillStyle = '#7f8ba3';
         context.textAlign = 'right';
         context.textBaseline = 'middle';
-        context.fillText(name, left - 9 * dpr, y);
+        context.fillText(`${percent}%`, left - 9 * dpr, y);
       });
 
-      const recentStartX = left + ((windowMs - recentWindowMs) / windowMs) * plotW;
+      const recentStartX = left + ((CHART_WINDOW_MS - RECENT_WINDOW_MS) / CHART_WINDOW_MS) * plotW;
       context.fillStyle = 'rgba(85, 217, 246, 0.055)';
       context.fillRect(recentStartX, top, left + plotW - recentStartX, plotH);
       context.strokeStyle = 'rgba(85, 217, 246, 0.55)';
-      context.lineWidth = dpr;
       context.setLineDash([4 * dpr, 4 * dpr]);
       context.beginPath();
       context.moveTo(recentStartX, top);
@@ -80,39 +68,36 @@ export function GoesChart({ points }: GoesChartProps) {
       );
 
       context.fillStyle = '#7f8ba3';
-      context.textAlign = 'center';
-      context.textBaseline = 'top';
       CHART_TIME_LABELS.forEach((label, index) => {
         const x = left + (index / (CHART_TIME_LABELS.length - 1)) * plotW;
         context.fillText(label, x, top + plotH + 9 * dpr);
       });
 
       const visiblePoints = points.filter((point) => {
-        const timestamp = Date.parse(point.time);
+        const timestamp = Date.parse(point.timeUT);
         return timestamp >= windowStart && timestamp <= now;
       });
-
       const series = [
-        { key: 'short' as const, color: '#55d9f6' },
-        { key: 'long' as const, color: '#f4d35e' },
+        { key: 'R1p' as const, color: '#f4d35e' },
+        { key: 'R2p' as const, color: '#ff9d5c' },
+        { key: 'R3p' as const, color: '#ff5869' },
       ];
       series.forEach(({ key, color }) => {
         context.beginPath();
         let started = false;
         visiblePoints.forEach((point) => {
-          const flux = point[key];
-          if (!flux || flux <= 0) return;
-          const timestamp = Date.parse(point.time);
-          const x = left + ((timestamp - windowStart) / windowMs) * plotW;
-          const logFlux = Math.max(-9, Math.min(-3, Math.log10(flux)));
-          const y = top + ((-3 - logFlux) / 6) * plotH;
+          const timestamp = Date.parse(point.timeUT);
+          const x = left + ((timestamp - windowStart) / CHART_WINDOW_MS) * plotW;
+          const y = top + (1 - point[key]) * plotH;
           if (!started) {
             context.moveTo(x, y);
             started = true;
-          } else context.lineTo(x, y);
+          } else {
+            context.lineTo(x, y);
+          }
         });
         context.strokeStyle = color;
-        context.lineWidth = 1.5 * dpr;
+        context.lineWidth = 2 * dpr;
         context.stroke();
       });
     }
@@ -126,8 +111,8 @@ export function GoesChart({ points }: GoesChartProps) {
   return (
     <canvas
       ref={canvasRef}
-      className="chart-canvas goes-canvas"
-      aria-label="GOES X-ray flux for the last 30 minutes, with the most recent 300 seconds indicated"
+      className="chart-canvas probability-canvas"
+      aria-label="Flare probabilities R1, R2, and R3 for the last 30 minutes, with the most recent 300 seconds indicated"
     />
   );
 }
