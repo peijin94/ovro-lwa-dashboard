@@ -191,8 +191,8 @@ function App() {
           <div className="primary-column">
             <article className="panel spectrum-panel">
               <PanelHeader
-                eyebrow="OVRO–LWA · STOKES I"
-                title="Live Dynamic Spectrum"
+                eyebrow="NJIT/OVSA"
+                title="OVRO-LWA Live Radio Dynamic Spectrum"
                 meta={`15–85 MHz · ${formatUtc(lastFrameAt)}`}
                 action={(
                   <button
@@ -216,8 +216,8 @@ function App() {
 
             <article className="panel lightcurve-panel">
               <PanelHeader
-                eyebrow="MIDDLE CHANNEL"
-                title="Live Light Curve"
+                eyebrow="NJIT/OVSA"
+                title="OVRO-LWA Live Radio Flux"
                 meta="50.0 MHz · Flux density (s.f.u.) · Log scale"
               />
               <LightCurve values={lightCurve} />
@@ -229,8 +229,8 @@ function App() {
 
             <article className="panel goes-panel">
               <PanelHeader
-                eyebrow="NOAA SPACE WEATHER"
-                title="GOES X-Ray Flux"
+                eyebrow="NOAA/SWPC"
+                title="GOES Live X-ray Flux"
                 meta={`Primary satellite GOES-${goes?.satellite ?? '—'} · Last 30 min`}
               />
               <div className="legend">
@@ -246,8 +246,8 @@ function App() {
 
             <article className="panel probability-panel">
               <PanelHeader
-                eyebrow="OVRO–LWA FLARE NOWCAST (10 MIN HORIZON)"
-                title="Flare Probability"
+                eyebrow="NJIT/OVSA FLARE NOWCAST MODEL"
+                title="Flare Probability in the Next 10 Min"
                 meta="RA1 >M1 · RA2 >M5 · RA3 >X1 · Last 30 min"
               />
               <div className="legend probability-legend">
