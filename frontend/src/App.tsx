@@ -42,6 +42,19 @@ function formatProbability(probability: number | undefined) {
   return `${Math.round(probability * 100)}%`;
 }
 
+function formatLatency(updated: string | null | undefined, now: Date) {
+  if (!updated) return null;
+  const elapsedSeconds = Math.max(
+    0,
+    Math.floor((now.getTime() - new Date(updated).getTime()) / 1000),
+  );
+  if (!Number.isFinite(elapsedSeconds)) return null;
+  if (elapsedSeconds < 60) return `${elapsedSeconds}s`;
+  const minutes = Math.floor(elapsedSeconds / 60);
+  const seconds = elapsedSeconds % 60;
+  return `${minutes}m ${seconds}s`;
+}
+
 function PanelHeader({
   eyebrow,
   title,
@@ -95,6 +108,7 @@ function App() {
   );
   const currentRadioFlux40 = radioFlux40.at(-1) ?? null;
   const peakRadioFlux40 = radioFlux40.length ? Math.max(...radioFlux40) : null;
+  const goesLatency = formatLatency(goes?.updated, now);
   const isLive = health?.live_spectrum || frames.length > 0;
   const showSunBanner = shouldShowSunBanner(ephemeris?.elevation_deg ?? null);
 
@@ -157,27 +171,19 @@ function App() {
               </div>
               <div className="metric-readout">
                 <strong>{currentGoesClass}</strong>
-                <span><b>Now</b></span>
+                <span><b>Latest</b>{goesLatency && ` · Now − ${goesLatency}`}</span>
               </div>
             </div>
             <small>{goes?.updated ? `Updated ${formatUtc(new Date(goes.updated))}` : 'Loading NOAA feed'}</small>
           </article>
           <article className="metric-card accent-orange nowcast-card">
-            <p>Flare Nowcast</p>
+            <p>Flare Nowcast (10 Min Horizon)</p>
             <div className="forecast-list">
-              <div><strong>R1</strong><span><b>{formatProbability(flareNowcast?.['>M1']?.probability)}</b> &gt;M1 flare possibility</span></div>
-              <div><strong>R2</strong><span><b>{formatProbability(flareNowcast?.['>M5']?.probability)}</b> &gt;M5 flare possibility</span></div>
-              <div><strong>R3</strong><span><b>{formatProbability(flareNowcast?.['>X1']?.probability)}</b> &gt;X1 flare possibility</span></div>
+              <div><strong>RA1</strong><span><b>{formatProbability(flareNowcast?.['>M1']?.probability)}</b> &gt;M1 flare possibility</span></div>
+              <div><strong>RA2</strong><span><b>{formatProbability(flareNowcast?.['>M5']?.probability)}</b> &gt;M5 flare possibility</span></div>
+              <div><strong>RA3</strong><span><b>{formatProbability(flareNowcast?.['>X1']?.probability)}</b> &gt;X1 flare possibility</span></div>
             </div>
             <small>{flareUpdatedAt ? `Updated ${formatUtc(flareUpdatedAt)}` : 'Waiting for OVSA nowcast'}</small>
-          </article>
-          <article className="metric-card accent-green">
-            <p>Radio Burst Detections</p>
-            <div className="metric-main">
-              <strong>0</strong>
-              <span>bursts</span>
-            </div>
-            <small>Detection feed placeholder</small>
           </article>
         </section>
 
@@ -240,28 +246,26 @@ function App() {
 
             <article className="panel probability-panel">
               <PanelHeader
-                eyebrow="OVRO–LWA FLARE NOWCAST"
+                eyebrow="OVRO–LWA FLARE NOWCAST (10 MIN HORIZON)"
                 title="Flare Probability"
-                meta="R1 >M1 · R2 >M5 · R3 >X1 · Last 30 min"
+                meta="RA1 >M1 · RA2 >M5 · RA3 >X1 · Last 30 min"
               />
               <div className="legend probability-legend">
-                <span><i className="legend-line probability-r1" /> R1 · &gt;M1</span>
-                <span><i className="legend-line probability-r2" /> R2 · &gt;M5</span>
-                <span><i className="legend-line probability-r3" /> R3 · &gt;X1</span>
+                <span><i className="legend-line probability-r1" /> RA1 · &gt;M1</span>
+                <span><i className="legend-line probability-r2" /> RA2 · &gt;M5</span>
+                <span><i className="legend-line probability-r3" /> RA3 · &gt;X1</span>
               </div>
               <FlareProbabilityChart points={flareProbabilityPoints} />
               <div className="panel-footer">
                 <span>{flareProbabilityPoints.length} probability records in view</span>
-                <span>
-                  Horizon: {flareNowcast?.horizon_min ?? '—'} min · Refresh: 10 s
-                </span>
+                <span>Horizon: 10 min · Refresh: 10 s</span>
               </div>
             </article>
           </div>
 
           <aside className="side-column">
             <article className="panel image-panel placeholder-panel">
-              <PanelHeader eyebrow="OVRO–LWA IMAGING" title="Live Solar Image" meta="Reserved" />
+              <PanelHeader eyebrow="OVRO–LWA IMAGING" title="Live Radio Image" meta="Reserved" />
               <div className="image-placeholder" role="img" aria-label="Placeholder for future live OVRO-LWA solar image">
                 <div className="placeholder-grid" />
                 <div className="solar-orbit"><span /></div>

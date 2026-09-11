@@ -9,10 +9,9 @@ public NOAA GOES data.
 - OVRO-LWA 15–85 MHz rolling dynamic spectrum (300 seconds)
 - 50 MHz live light curve derived from the middle spectrum channel
 - NOAA GOES primary-satellite X-ray flux and current flare class
-- Thirty-minute R1/R2/R3 flare-probability history with 10-second live updates
+- Thirty-minute RA1/RA2/RA3 flare-probability history with 10-second live updates
 - Latest NOAA GOES/SUVI 195 Å solar image
-- Reserved placeholder for the future live OVRO-LWA image pipeline
-- Current OVRO-LWA Type III detection status
+- Reserved placeholder for the future live OVRO-LWA radio-image pipeline
 
 ## Local development
 
