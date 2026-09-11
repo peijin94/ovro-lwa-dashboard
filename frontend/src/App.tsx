@@ -39,6 +39,7 @@ function formatSfu(value: number | null) {
 
 function formatProbability(probability: number | undefined) {
   if (probability === undefined || !Number.isFinite(probability)) return '—';
+  if (probability > 0 && probability < 0.01) return '<1%';
   return `${Math.round(probability * 100)}%`;
 }
 
@@ -177,11 +178,24 @@ function App() {
             <small>{goes?.updated ? `Updated ${formatUtc(new Date(goes.updated))}` : 'Loading NOAA feed'}</small>
           </article>
           <article className="metric-card accent-orange nowcast-card">
-            <p>Flare Nowcast (10 Min Horizon)</p>
+            <p>Radio-Assisted Flare Nowcast — Next 10 Min</p>
+            <strong className="forecast-heading">Flare Nowcast — Next 10 Min</strong>
             <div className="forecast-list">
-              <div><strong>RA1</strong><span><b>{formatProbability(flareNowcast?.['>M1']?.probability)}</b> &gt;M1 flare possibility</span></div>
-              <div><strong>RA2</strong><span><b>{formatProbability(flareNowcast?.['>M5']?.probability)}</b> &gt;M5 flare possibility</span></div>
-              <div><strong>RA3</strong><span><b>{formatProbability(flareNowcast?.['>X1']?.probability)}</b> &gt;X1 flare possibility</span></div>
+              <div>
+                <strong>[p-M1+]</strong>
+                <b>{formatProbability(flareNowcast?.['>M1']?.probability)}</b>
+                <span>Probability of an M1-or-greater flare</span>
+              </div>
+              <div>
+                <strong>[p-M5+]</strong>
+                <b>{formatProbability(flareNowcast?.['>M5']?.probability)}</b>
+                <span>Probability of an M5-or-greater flare</span>
+              </div>
+              <div>
+                <strong>[p-X1+]</strong>
+                <b>{formatProbability(flareNowcast?.['>X1']?.probability)}</b>
+                <span>Probability of an X1-or-greater flare</span>
+              </div>
             </div>
             <small>{flareUpdatedAt ? `Updated ${formatUtc(flareUpdatedAt)}` : 'Waiting for OVSA nowcast'}</small>
           </article>
