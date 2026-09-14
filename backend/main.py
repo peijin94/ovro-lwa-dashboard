@@ -21,6 +21,7 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from backend.flare_records import FlareRecordStore
+from backend.nowcast_engine import NowcastEngine, RadioBuffer
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -39,9 +40,8 @@ GOES_IMAGE_URL = os.environ.get(
 EPHEMERIS_URL = os.environ.get(
     "EPHEMERIS_URL", "https://ovsa.njit.edu/api/ephm/info"
 )
-FLARE_NOWCAST_URL = os.environ.get(
-    "FLARE_NOWCAST_URL", "https://ovsa.njit.edu/api/flare/nowcast"
-)
+FLARE_MODEL_DIR = Path(os.environ.get("FLARE_MODEL_DIR", ROOT / "models"))
+RADIO_MIN_ELEVATION_DEG = 12.0
 STREAM_JY_PER_SFU = 10_000 * 24
 RADIO_CHANNELS = {40: 268, 60: 476, 80: 685}
 FLARE_RECORD_INTERVAL_SECONDS = 10.0
@@ -53,6 +53,10 @@ FLARECAST_DB_PATH = Path(
 
 logger = logging.getLogger(__name__)
 flare_record_store = FlareRecordStore(FLARECAST_DB_PATH)
+nowcast_engine: Optional[NowcastEngine] = None
+radio_buffer = RadioBuffer(180)
+_radio_enabled = False
+_prediction_lock = asyncio.Lock()
 
 
 async def _run_blocking(function: Any, *args: Any) -> Any:
@@ -63,14 +67,21 @@ async def _run_blocking(function: Any, *args: Any) -> Any:
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    global nowcast_engine, radio_buffer
     await _run_blocking(flare_record_store.initialize)
+    nowcast_engine = await _run_blocking(NowcastEngine, FLARE_MODEL_DIR)
+    radio_buffer = RadioBuffer(int(nowcast_engine.requirements["radio_s"]))
+    sampler = asyncio.create_task(_radio_sampling_loop())
     recorder = asyncio.create_task(_flare_recording_loop())
     try:
         yield
     finally:
         recorder.cancel()
+        sampler.cancel()
         with suppress(asyncio.CancelledError):
             await recorder
+        with suppress(asyncio.CancelledError):
+            await sampler
 
 app = FastAPI(
     title="OVRO-LWA Solar Dashboard",
@@ -246,19 +257,25 @@ def _utc_now_text() -> str:
 
 
 async def _fetch_current_flare_nowcast() -> Dict[str, Any]:
-    frame = await _get_json(f"{LIVE_SPECTRUM_URL}/data", timeout=5.0)
-    if not isinstance(frame, list):
-        raise HTTPException(status_code=502, detail="Invalid live spectrum response")
+    global _radio_enabled
+    if nowcast_engine is None:
+        raise HTTPException(status_code=503, detail="Nowcast model is starting")
+    reason = "ephemeris_unavailable"
     try:
-        flux3ch = _radio_flux3ch(frame)
+        eph = _parse_ephemeris_info(await _get_text(EPHEMERIS_URL, timeout=3.0))
+        _radio_enabled = eph["elevation_deg"] >= RADIO_MIN_ELEVATION_DEG
+        reason = "radio_unavailable_or_warming" if _radio_enabled else "sun_below_12_deg"
+    except (HTTPException, ValueError):
+        _radio_enabled = False
+    if not _radio_enabled:
+        radio_buffer.reset()
+    goes = await _get_goes_payload()
+    issue_time = time.time()
+    bands = radio_buffer.bands(issue_time) if _radio_enabled else None
+    try:
+        payload = await _run_blocking(nowcast_engine.predict, issue_time, goes, bands, reason)
     except ValueError as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
-
-    payload = await _post_json(
-        FLARE_NOWCAST_URL, {"flux3ch": flux3ch}, timeout=15.0
-    )
-    if not isinstance(payload, dict):
-        raise HTTPException(status_code=502, detail="Invalid flare nowcast response")
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     return payload
 
 
@@ -267,8 +284,8 @@ async def flare_nowcast() -> JSONResponse:
     """Return the recorder's latest nowcast without reading SQLite."""
     payload = _latest_flare_nowcast
     if payload is None:
-        current = await _fetch_current_flare_nowcast()
-        payload = {**current, "recorded_at": _utc_now_text()}
+        raise HTTPException(status_code=503, detail="Waiting for a valid GOES nowcast")
+    payload = {**payload, "stale": time.time() - payload.get("unix_s", 0) > 30}
     return JSONResponse(payload, headers={"Cache-Control": "no-store"})
 
 
@@ -289,15 +306,12 @@ async def flare_history(
 
 
 async def _record_current_flare_probability() -> bool:
-    global _latest_flare_nowcast
+    async with _prediction_lock:
+        return await _record_flare_prediction()
 
-    raw_ephemeris = await _get_text(EPHEMERIS_URL, timeout=5.0)
-    try:
-        ephemeris_payload = _parse_ephemeris_info(raw_ephemeris)
-    except ValueError as exc:
-        raise HTTPException(status_code=502, detail="Invalid ephemeris response") from exc
-    if ephemeris_payload["elevation_deg"] <= 0:
-        return False
+
+async def _record_flare_prediction() -> bool:
+    global _latest_flare_nowcast
 
     payload = await _fetch_current_flare_nowcast()
     try:
@@ -314,6 +328,24 @@ async def _record_current_flare_probability() -> bool:
     )
     _latest_flare_nowcast = {**payload, "recorded_at": recorded_at}
     return True
+
+
+async def _radio_sampling_loop() -> None:
+    while True:
+        started = time.monotonic()
+        if _radio_enabled:
+            try:
+                payload = await _get_json(f"{LIVE_SPECTRUM_URL}/refresh?n_frames=2", timeout=2.0)
+                if _radio_enabled and isinstance(payload, dict) and time.monotonic() - started < 2:
+                    radio_buffer.ingest(payload, time.time())
+                else:
+                    radio_buffer.reset()
+            except Exception as exc:
+                radio_buffer.reset()
+                logger.debug("Radio sampling unavailable: %s", exc)
+        else:
+            radio_buffer.reset()
+        await asyncio.sleep(max(0.05, 1.0 - (time.monotonic() - started)))
 
 
 async def _flare_recording_loop() -> None:
@@ -352,6 +384,8 @@ def _format_goes_payload(records: List[Dict[str, Any]]) -> Dict[str, Any]:
             continue
         if energy not in {"0.05-0.4nm", "0.1-0.8nm"}:
             continue
+        if not math.isfinite(flux) or flux <= 0:
+            continue
         point = by_time.setdefault(time_tag, {"time": time_tag})
         point["short" if energy == "0.05-0.4nm" else "long"] = max(
             float(flux), 1e-10
@@ -374,14 +408,11 @@ def _format_goes_payload(records: List[Dict[str, Any]]) -> Dict[str, Any]:
     }
 
 
-@app.get("/api/goes/xray")
-async def goes_xray() -> JSONResponse:
-    """Return normalized GOES X-ray flux with a short shared upstream cache."""
+async def _get_goes_payload() -> Dict[str, Any]:
+    """Share the full GOES history between the model and the chart."""
     now = time.monotonic()
     if _goes_cache["payload"] is not None and now < _goes_cache["expires"]:
-        return JSONResponse(
-            _goes_cache["payload"], headers={"Cache-Control": "no-store"}
-        )
+        return _goes_cache["payload"]
 
     async with _goes_lock:
         now = time.monotonic()
@@ -392,9 +423,12 @@ async def goes_xray() -> JSONResponse:
             _goes_cache["payload"] = _format_goes_payload(records)
             _goes_cache["expires"] = now + 25.0
 
-    return JSONResponse(
-        _goes_cache["payload"], headers={"Cache-Control": "no-store"}
-    )
+    return _goes_cache["payload"]
+
+
+@app.get("/api/goes/xray")
+async def goes_xray() -> JSONResponse:
+    return JSONResponse(await _get_goes_payload(), headers={"Cache-Control": "no-store"})
 
 
 @app.get("/api/goes/image")

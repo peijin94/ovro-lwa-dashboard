@@ -12,7 +12,8 @@ Environment=PYTHONUNBUFFERED=1
 Environment=LIVE_SPECTRUM_URL=http://127.0.0.1:9527
 Environment=FLARECAST_DB_PATH=/var/lib/ovro-dashboard/flarecast_record.sqlite3
 StateDirectory=ovro-dashboard
-ExecStart=/home/peijin/ovro-lwa-dashboard/.venv/bin/uvicorn backend.main:app --host 127.0.0.1 --port 9528
+Environment=OPENBLAS_NUM_THREADS=1
+ExecStart=/home/peijin/ovro-lwa-dashboard/.venv-nowcast/bin/uvicorn backend.main:app --host 127.0.0.1 --port 9528
 Restart=on-failure
 RestartSec=5
 TimeoutStopSec=20

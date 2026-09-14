@@ -156,7 +156,7 @@ export function useDashboardData() {
           const pointTime = new Date(point.timeUT);
           setFlareUpdatedAt(pointTime);
           setFlareProbabilityPoints((current) =>
-            mergeProbabilityRecords(current, [point], pointTime.getTime()),
+            mergeProbabilityRecords(current, [point], Date.now()),
           );
         }
       } catch {

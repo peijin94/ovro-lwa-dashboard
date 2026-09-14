@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math
 import sqlite3
+from contextlib import closing
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -22,7 +23,7 @@ class FlareRecordStore:
 
     def initialize(self) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        with self._connect() as connection:
+        with closing(self._connect()) as connection, connection:
             connection.execute("PRAGMA journal_mode=WAL")
             connection.execute("PRAGMA busy_timeout=10000")
             connection.execute(
@@ -40,7 +41,7 @@ class FlareRecordStore:
         probabilities = (float(r1p), float(r2p), float(r3p))
         if any(not math.isfinite(value) or value < 0 or value > 1 for value in probabilities):
             raise ValueError("Flare probabilities must be finite values between 0 and 1")
-        with self._connect() as connection:
+        with closing(self._connect()) as connection, connection:
             connection.execute(
                 """
                 INSERT OR REPLACE INTO flarecast_record (timeUT, R1p, R2p, R3p)
@@ -60,7 +61,7 @@ class FlareRecordStore:
             reference = reference.replace(tzinfo=timezone.utc)
         cutoff = reference.astimezone(timezone.utc) - timedelta(minutes=minutes)
         cutoff_text = cutoff.isoformat(timespec="milliseconds").replace("+00:00", "Z")
-        with self._connect() as connection:
+        with closing(self._connect()) as connection, connection:
             rows = connection.execute(
                 """
                 SELECT timeUT, R1p, R2p, R3p

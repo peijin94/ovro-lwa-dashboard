@@ -103,7 +103,7 @@ class FlareRecorderTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(result, 42)
 
-    async def test_records_nowcast_only_while_sun_is_up(self) -> None:
+    async def test_records_nowcast_even_while_sun_is_down(self) -> None:
         forecast = {
             ">M1": {"probability": 0.7},
             ">M5": {"probability": 0.3},
@@ -118,7 +118,7 @@ class FlareRecorderTests(unittest.IsolatedAsyncioTestCase):
                 patch.object(
                     main,
                     "_get_text",
-                    AsyncMock(return_value="time=x alt=12.0deg az=100.0deg sunup=1"),
+                    AsyncMock(return_value="time=x alt=-12.0deg az=100.0deg sunup=0"),
                 ),
                 patch.object(
                     main,
@@ -137,22 +137,6 @@ class FlareRecorderTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(recorded)
         self.assertEqual(len(points), 1)
         self.assertEqual(points[0]["R1p"], 0.7)
-
-    async def test_skips_nowcast_query_while_sun_is_down(self) -> None:
-        nowcast = AsyncMock()
-        with (
-            patch.object(
-                main,
-                "_get_text",
-                AsyncMock(return_value="time=x alt=-0.1deg az=280.0deg sunup=0"),
-            ),
-            patch.object(main, "_fetch_current_flare_nowcast", nowcast),
-        ):
-            recorded = await main._record_current_flare_probability()
-
-        self.assertFalse(recorded)
-        nowcast.assert_not_awaited()
-
 
 class ApiTests(unittest.TestCase):
     def setUp(self) -> None:
@@ -179,32 +163,10 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(response.json()["elevation_deg"], 9.5)
         self.assertEqual(response.headers["cache-control"], "no-store")
 
-    def test_flare_nowcast_uses_current_normalized_radio_flux(self) -> None:
-        frame = [0.0] * 768
-        frame[268] = 240_000
-        frame[476] = 480_000
-        frame[685] = 720_000
-        forecast = {
-            "feature_sfu": 2.0,
-            "horizon_min": 5.0,
-            ">M1": {"probability": 0.7},
-            ">M5": {"probability": 0.3},
-            ">X1": {"probability": 0.1},
-        }
-        with (
-            patch.object(main, "_get_json", AsyncMock(return_value=frame)),
-            patch.object(main, "_post_json", AsyncMock(return_value=forecast)) as post,
-            patch.object(main, "_latest_flare_nowcast", None),
-        ):
+    def test_flare_nowcast_waits_for_valid_model_result(self) -> None:
+        with patch.object(main, "_latest_flare_nowcast", None):
             response = self.client.get("/api/flare/nowcast")
-
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json()[">M1"]["probability"], 0.7)
-        post.assert_awaited_once_with(
-            main.FLARE_NOWCAST_URL,
-            {"flux3ch": [1.0, 2.0, 3.0]},
-            timeout=15.0,
-        )
+        self.assertEqual(response.status_code, 503)
 
     def test_flare_history_returns_database_records(self) -> None:
         with TemporaryDirectory() as directory:

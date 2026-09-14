@@ -124,6 +124,7 @@ main { padding: 56px 0 46px; }
 .forecast-list strong { color: #aab3c2; font: 700 9px ui-monospace, monospace; letter-spacing: .01em; }
 .forecast-list b { color: #f3f5f8; font-size: 14px; line-height: 1; }
 .forecast-list span { color: #8792a5; font-size: 8px; line-height: 1.25; }
+.metric-card small.forecast-mode { margin-top: 6px; color: #aab3c2; line-height: 1.4; }
 .accent-yellow { --accent: var(--yellow); }
 .accent-cyan { --accent: var(--cyan); }
 .accent-orange { --accent: var(--orange); }

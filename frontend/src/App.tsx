@@ -110,6 +110,15 @@ function App() {
   const currentRadioFlux40 = radioFlux40.at(-1) ?? null;
   const peakRadioFlux40 = radioFlux40.length ? Math.max(...radioFlux40) : null;
   const goesLatency = formatLatency(goes?.updated, now);
+  const forecastStale = flareNowcast?.stale || (flareUpdatedAt && now.getTime() - flareUpdatedAt.getTime() > 30_000);
+  const forecastMode = flareNowcast?.mode === 'radio_xray' ? 'Radio + X-ray' : 'X-ray only';
+  const radioReason = flareNowcast?.radio_status === 'sun_below_12_deg'
+    ? 'Sun below 12°'
+    : flareNowcast?.radio_status === 'ephemeris_unavailable'
+      ? 'Solar elevation unavailable'
+      : flareNowcast?.radio_status === 'available'
+        ? 'Model selected X-ray-only prediction'
+        : 'Radio unavailable or collecting history';
   const isLive = health?.live_spectrum || frames.length > 0;
   const showSunBanner = shouldShowSunBanner(ephemeris?.elevation_deg ?? null);
 
@@ -178,7 +187,7 @@ function App() {
             <small>{goes?.updated ? `Updated ${formatUtc(new Date(goes.updated))}` : 'Loading NOAA feed'}</small>
           </article>
           <article className="metric-card accent-orange nowcast-card">
-            <p>Radio-Assisted Flare Nowcast — Next 10 Min</p>
+            <p>{flareNowcast?.mode === 'radio_xray' ? 'Radio-Assisted' : 'X-ray'} Flare Nowcast — Next 10 Min</p>
             <strong className="forecast-heading">Flare Nowcast — Next 10 Min</strong>
             <div className="forecast-list">
               <div>
@@ -198,6 +207,11 @@ function App() {
               </div>
             </div>
             <small>{flareUpdatedAt ? `Updated ${formatUtc(flareUpdatedAt)}` : 'Waiting for OVSA nowcast'}</small>
+            {flareNowcast && <small className="forecast-mode">
+              {forecastStale ? 'Update delayed · Last prediction' : forecastMode}
+              {flareNowcast.mode === 'xray_only' && ` · ${radioReason}`}
+              {flareNowcast.delay_exceeds_train && ` · GOES delay exceeds 6 min; using ${flareNowcast.lag_used_min} min model`}
+            </small>}
           </article>
         </section>
 

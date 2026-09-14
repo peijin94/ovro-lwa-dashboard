@@ -67,6 +67,12 @@ export interface FlareNowcastPayload {
   model_version: string;
   created_utc: string;
   recorded_at?: string;
+  mode?: 'radio_xray' | 'xray_only';
+  radio_status?: string;
+  used_radio?: boolean;
+  delay_exceeds_train?: boolean;
+  lag_used_min?: number;
+  stale?: boolean;
 }
 
 export interface FlareProbabilityRecord {
