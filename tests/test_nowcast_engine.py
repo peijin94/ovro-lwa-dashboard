@@ -48,6 +48,12 @@ class EngineTests(unittest.TestCase):
             self.assertTrue(0 <= result[name]["probability"] <= 1)
         json.dumps(result, allow_nan=False)
 
+    def test_records_exact_delay_not_selected_model_lag(self):
+        result = self.engine.predict(ISSUE + .75, goes_history(delay=301), None, 'unavailable')
+        # The newest one-minute sample here is ISSUE-360; retain fractional time.
+        self.assertEqual(result['xray_delay'], 360.75)
+        self.assertEqual(result['lag_used_s'], 360)
+
     def test_real_models_use_radio_only_when_blend_gate_allows_it(self):
         bands = {f: np.full(180, 20.0) for f in (40, 60, 80)}
         quiet = self.engine.predict(ISSUE, goes_history(), bands, "available")

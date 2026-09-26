@@ -126,6 +126,8 @@ class NowcastEngine:
         if not all(math.isfinite(result[name]["probability"]) for name in (">M1", ">M5", ">X1")):
             raise ValueError("Required GOES features are unavailable")
         result["created_utc"] = self.requirements["created_utc"]
+        # Measured latency at issue time, not the rounded model lag.
+        result["xray_delay"] = float(issue_time - times[-1])
         result["frequencies_mhz"] = list(RADIO_CHANNELS)
         result["mode"] = "radio_xray" if result["used_radio"] else "xray_only"
         result["radio_status"] = reason if bands is None else (

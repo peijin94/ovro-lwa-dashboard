@@ -325,6 +325,7 @@ async def _record_flare_prediction() -> bool:
         r1p,
         r2p,
         r3p,
+        payload["xray_delay"],
     )
     _latest_flare_nowcast = {**payload, "recorded_at": recorded_at}
     return True

@@ -32,22 +32,30 @@ class FlareRecordStore:
                     timeUT TEXT PRIMARY KEY,
                     R1p REAL NOT NULL CHECK (R1p >= 0 AND R1p <= 1),
                     R2p REAL NOT NULL CHECK (R2p >= 0 AND R2p <= 1),
-                    R3p REAL NOT NULL CHECK (R3p >= 0 AND R3p <= 1)
+                    R3p REAL NOT NULL CHECK (R3p >= 0 AND R3p <= 1),
+                    xray_delay REAL CHECK (xray_delay >= 0)
                 )
                 """
             )
 
-    def append(self, time_ut: str, r1p: float, r2p: float, r3p: float) -> None:
+            columns = {row["name"] for row in connection.execute("PRAGMA table_info(flarecast_record)")}
+            if "xray_delay" not in columns:
+                connection.execute("ALTER TABLE flarecast_record ADD COLUMN xray_delay REAL CHECK (xray_delay >= 0)")
+
+    def append(self, time_ut: str, r1p: float, r2p: float, r3p: float, xray_delay: float) -> None:
         probabilities = (float(r1p), float(r2p), float(r3p))
         if any(not math.isfinite(value) or value < 0 or value > 1 for value in probabilities):
             raise ValueError("Flare probabilities must be finite values between 0 and 1")
+        delay = float(xray_delay)
+        if not math.isfinite(delay) or delay < 0:
+            raise ValueError("X-ray delay must be finite nonnegative seconds")
         with closing(self._connect()) as connection, connection:
             connection.execute(
                 """
-                INSERT OR REPLACE INTO flarecast_record (timeUT, R1p, R2p, R3p)
-                VALUES (?, ?, ?, ?)
+                INSERT OR REPLACE INTO flarecast_record (timeUT, R1p, R2p, R3p, xray_delay)
+                VALUES (?, ?, ?, ?, ?)
                 """,
-                (time_ut, *probabilities),
+                (time_ut, *probabilities, delay),
             )
 
     def recent(
@@ -64,7 +72,7 @@ class FlareRecordStore:
         with closing(self._connect()) as connection, connection:
             rows = connection.execute(
                 """
-                SELECT timeUT, R1p, R2p, R3p
+                SELECT timeUT, R1p, R2p, R3p, xray_delay
                 FROM flarecast_record
                 WHERE timeUT >= ?
                 ORDER BY timeUT ASC

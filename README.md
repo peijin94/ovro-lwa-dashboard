@@ -67,6 +67,13 @@ The backend runs the supplied v0.3 occupancy model locally every 10 seconds,
 at `/var/lib/ovro-dashboard/flarecast_record.sqlite3` using `StateDirectory`, so
 records survive application deployments and service restarts.
 
+Each new record also stores `xray_delay`: prediction issue time minus the newest
+valid GOES XRS-B sample timestamp, in seconds (including fractional seconds).
+This is the measured latency, not the model's selected 1–6 minute lag.
+Startup automatically adds the nullable REAL column to existing databases;
+older records retain NULL because their delays were not captured. Both the
+latest-nowcast and history APIs include `xray_delay`.
+
 `GET /api/flare/history?minutes=30` returns the initial plot window. After that
 one database read, each open browser appends live `/api/flare/nowcast` results
 to its in-memory 30-minute series every 10 seconds.

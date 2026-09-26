@@ -1,4 +1,5 @@
 import asyncio
+import sqlite3
 import unittest
 from datetime import datetime, timezone
 from pathlib import Path
@@ -74,12 +75,31 @@ class RadioFluxTests(unittest.TestCase):
 
 
 class FlareRecordStoreTests(unittest.TestCase):
+    def test_migrates_legacy_database_without_changing_rows(self):
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / 'legacy.sqlite3'
+            connection = sqlite3.connect(path)
+            connection.execute('CREATE TABLE flarecast_record (timeUT TEXT PRIMARY KEY, R1p REAL, R2p REAL, R3p REAL)')
+            connection.execute('INSERT INTO flarecast_record VALUES (?, ?, ?, ?)', ('2026-09-10T19:15:00.000Z', .7, .3, .1))
+            connection.commit()
+            connection.close()
+            store = FlareRecordStore(path)
+            store.initialize()
+            store.initialize()
+            points = store.recent(30, now=datetime(2026, 9, 10, 19, 30, tzinfo=timezone.utc))
+            self.assertEqual(len(points), 1)
+            self.assertEqual(points[0]['R1p'], .7)
+            self.assertIsNone(points[0]['xray_delay'])
+            for delay in (-1, float('nan'), float('inf')):
+                with self.assertRaises(ValueError):
+                    store.append('2026-09-10T19:20:00.000Z', .7, .3, .1, delay)
+
     def test_persists_and_filters_recent_probability_records(self) -> None:
         with TemporaryDirectory() as directory:
             store = FlareRecordStore(Path(directory) / "flarecast_record.sqlite3")
             store.initialize()
-            store.append("2026-09-10T18:59:59.000Z", 0.1, 0.05, 0.01)
-            store.append("2026-09-10T19:15:00.000Z", 0.7, 0.3, 0.1)
+            store.append("2026-09-10T18:59:59.000Z", 0.1, 0.05, 0.01, 301)
+            store.append("2026-09-10T19:15:00.000Z", 0.7, 0.3, 0.1, 301.25)
 
             points = store.recent(
                 30,
@@ -92,6 +112,7 @@ class FlareRecordStoreTests(unittest.TestCase):
                 "R1p": 0.7,
                 "R2p": 0.3,
                 "R3p": 0.1,
+                "xray_delay": 301.25,
             }
         ])
 
@@ -105,6 +126,7 @@ class FlareRecorderTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_records_nowcast_even_while_sun_is_down(self) -> None:
         forecast = {
+            "xray_delay": 301.75,
             ">M1": {"probability": 0.7},
             ">M5": {"probability": 0.3},
             ">X1": {"probability": 0.1},
@@ -137,6 +159,7 @@ class FlareRecorderTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(recorded)
         self.assertEqual(len(points), 1)
         self.assertEqual(points[0]["R1p"], 0.7)
+        self.assertEqual(points[0]["xray_delay"], 301.75)
 
 class ApiTests(unittest.TestCase):
     def setUp(self) -> None:
@@ -172,13 +195,14 @@ class ApiTests(unittest.TestCase):
         with TemporaryDirectory() as directory:
             store = FlareRecordStore(Path(directory) / "flarecast_record.sqlite3")
             store.initialize()
-            store.append(main._utc_now_text(), 0.7, 0.3, 0.1)
+            store.append(main._utc_now_text(), 0.7, 0.3, 0.1, 301)
             with patch.object(main, "flare_record_store", store):
                 response = self.client.get("/api/flare/history?minutes=30")
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["window_minutes"], 30)
         self.assertEqual(response.json()["points"][0]["R1p"], 0.7)
+        self.assertEqual(response.json()["points"][0]["xray_delay"], 301)
 
     def test_flare_nowcast_returns_recorder_cache_without_database_read(self) -> None:
         cached = {
