@@ -11,7 +11,7 @@ public NOAA GOES data.
 - NOAA GOES primary-satellite X-ray flux and current flare class
 - Thirty-minute RA1/RA2/RA3 flare-probability history with 10-second live updates
 - Latest NOAA GOES/SUVI 195 Å solar image
-- Reserved placeholder for the future live OVRO-LWA radio-image pipeline
+- Live OVRO-LWA slow solar radio image, refreshed once per minute
 
 ## Local development
 
@@ -55,6 +55,7 @@ then reloads Apache. It must be run with `sudo` on `ovsa`.
 | `LIVE_SPECTRUM_URL` | `http://127.0.0.1:9527` | Existing SunSpecStreamSys service |
 | `GOES_XRAY_URL` | NOAA primary 1-day feed | GOES X-ray JSON source |
 | `GOES_IMAGE_URL` | NOAA primary SUVI 195 Å image | Latest solar image source |
+| `LWA_IMAGE_URL` | `https://ovsa.njit.edu/lwa-data/latest_slow_image.png` | Latest OVRO-LWA slow solar image |
 | `EPHEMERIS_URL` | `https://ovsa.njit.edu/api/ephm/info` | Radio eligibility: solar elevation ≥12° |
 | `FLARE_MODEL_DIR` | `models/` | Six unchanged v0.3 occupancy GAM archives |
 | `FLARECAST_DB_PATH` | `data/flarecast_record.sqlite3` | SQLite probability-record database |

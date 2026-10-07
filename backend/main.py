@@ -37,6 +37,10 @@ GOES_IMAGE_URL = os.environ.get(
     "GOES_IMAGE_URL",
     "https://services.swpc.noaa.gov/images/animations/suvi/primary/195/latest.png",
 )
+LWA_IMAGE_URL = os.environ.get(
+    "LWA_IMAGE_URL",
+    "https://ovsa.njit.edu/lwa-data/latest_slow_image.png",
+)
 EPHEMERIS_URL = os.environ.get(
     "EPHEMERIS_URL", "https://ovsa.njit.edu/api/ephm/info"
 )
@@ -107,6 +111,12 @@ _image_cache: Dict[str, Any] = {
 }
 _goes_lock = asyncio.Lock()
 _image_lock = asyncio.Lock()
+_lwa_image_cache: Dict[str, Any] = {
+    "expires": 0.0,
+    "content": None,
+    "content_type": "image/png",
+}
+_lwa_image_lock = asyncio.Lock()
 
 
 async def _get_json(url: str, *, timeout: float = 10.0) -> Any:
@@ -460,6 +470,37 @@ async def goes_image() -> Response:
         content=_image_cache["content"],
         media_type=_image_cache["content_type"],
         headers={"Cache-Control": "public, max-age=180"},
+    )
+
+
+@app.get("/api/lwa/image")
+async def lwa_image() -> Response:
+    """Proxy and cache the latest OVRO-LWA slow solar image."""
+    now = time.monotonic()
+    if _lwa_image_cache["content"] is None or now >= _lwa_image_cache["expires"]:
+        async with _lwa_image_lock:
+            now = time.monotonic()
+            if _lwa_image_cache["content"] is None or now >= _lwa_image_cache["expires"]:
+                try:
+                    async with httpx.AsyncClient(
+                        timeout=httpx.Timeout(20.0), follow_redirects=True
+                    ) as client:
+                        response = await client.get(LWA_IMAGE_URL)
+                        response.raise_for_status()
+                except httpx.HTTPError as exc:
+                    raise HTTPException(
+                        status_code=502, detail="LWA image unavailable"
+                    ) from exc
+                _lwa_image_cache["content"] = response.content
+                _lwa_image_cache["content_type"] = response.headers.get(
+                    "content-type", "image/png"
+                )
+                _lwa_image_cache["expires"] = now + 60.0
+
+    return Response(
+        content=_lwa_image_cache["content"],
+        media_type=_lwa_image_cache["content_type"],
+        headers={"Cache-Control": "public, max-age=45"},
     )
 
 

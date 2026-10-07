@@ -118,10 +118,12 @@ main { padding: 56px 0 46px; }
 .metric-readout strong em { color: #7d8799; font: 600 8px ui-monospace, monospace; letter-spacing: .02em; }
 .metric-readout span { display: block; margin-top: 8px; color: #778297; font-size: 9px; }
 .metric-readout span b { color: #c4ccd8; font-weight: 700; }
-.forecast-heading { display: block; margin: -5px 0 10px; color: #d9dee7; font: 700 9px ui-monospace, monospace; letter-spacing: .08em; text-transform: uppercase; }
-.forecast-list { display: grid; gap: 7px; }
-.forecast-list div { display: grid; grid-template-columns: 54px 34px minmax(0, 1fr); align-items: center; gap: 8px; }
-.forecast-list strong { color: #aab3c2; font: 700 9px ui-monospace, monospace; letter-spacing: .01em; }
+.forecast-list { display: grid; gap: 7px; margin-top: 4px; }
+.forecast-list div { display: grid; grid-template-columns: auto 44px minmax(0, 1fr); align-items: center; gap: 10px; }
+.flare-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 52px; padding: 4px 10px; border-radius: 6px; border: 1px solid; font: 700 10px ui-monospace, SFMono-Regular, monospace; letter-spacing: .08em; white-space: nowrap; }
+.badge-m1 { color: #f4d35e; border-color: rgba(244, 211, 94, .55); background: rgba(244, 211, 94, .12); box-shadow: 0 0 10px rgba(244, 211, 94, .12); }
+.badge-m5 { color: #ff9d5c; border-color: rgba(255, 157, 92, .55); background: rgba(255, 157, 92, .12); box-shadow: 0 0 10px rgba(255, 157, 92, .12); }
+.badge-x1 { color: #ff5869; border-color: rgba(255, 88, 105, .55); background: rgba(255, 88, 105, .12); box-shadow: 0 0 10px rgba(255, 88, 105, .12); }
 .forecast-list b { color: #f3f5f8; font-size: 14px; line-height: 1; }
 .forecast-list span { color: #8792a5; font-size: 8px; line-height: 1.25; }
 .metric-card small.forecast-mode { margin-top: 6px; color: #aab3c2; line-height: 1.4; }
