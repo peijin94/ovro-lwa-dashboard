@@ -112,7 +112,7 @@ export function FlareProbabilityChart({ points }: FlareProbabilityChartProps) {
     <canvas
       ref={canvasRef}
       className="chart-canvas probability-canvas"
-      aria-label="Flare probabilities RA1, RA2, and RA3 for the last 30 minutes, with the most recent 300 seconds indicated"
+      aria-label="Flare probabilities p-M1+, p-M5+, and p-X1+ for the last 30 minutes, with the most recent 300 seconds indicated"
     />
   );
 }

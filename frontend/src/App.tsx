@@ -90,6 +90,7 @@ function App() {
     lightCurve,
     goes,
     goesImageRefreshToken,
+    radioImages,
     flareNowcast,
     flareUpdatedAt,
     flareProbabilityPoints,
@@ -188,20 +189,19 @@ function App() {
           </article>
           <article className="metric-card accent-orange nowcast-card">
             <p>{flareNowcast?.mode === 'radio_xray' ? 'Radio-Assisted' : 'X-ray'} Flare Nowcast — Next 10 Min</p>
-            <strong className="forecast-heading">Flare Nowcast — Next 10 Min</strong>
             <div className="forecast-list">
               <div>
-                <strong>[p-M1+]</strong>
+                <span className="flare-badge badge-m1">M1+</span>
                 <b>{formatProbability(flareNowcast?.['>M1']?.probability)}</b>
                 <span>Probability of an M1-or-greater flare</span>
               </div>
               <div>
-                <strong>[p-M5+]</strong>
+                <span className="flare-badge badge-m5">M5+</span>
                 <b>{formatProbability(flareNowcast?.['>M5']?.probability)}</b>
                 <span>Probability of an M5-or-greater flare</span>
               </div>
               <div>
-                <strong>[p-X1+]</strong>
+                <span className="flare-badge badge-x1">X1+</span>
                 <b>{formatProbability(flareNowcast?.['>X1']?.probability)}</b>
                 <span>Probability of an X1-or-greater flare</span>
               </div>
@@ -276,12 +276,12 @@ function App() {
               <PanelHeader
                 eyebrow="NJIT/OVSA FLARE NOWCAST MODEL"
                 title="Flare Probability in the Next 10 Min"
-                meta="RA1 >M1 · RA2 >M5 · RA3 >X1 · Last 30 min"
+                meta="p-M1+ · p-M5+ · p-X1+ · Last 30 min"
               />
               <div className="legend probability-legend">
-                <span><i className="legend-line probability-r1" /> RA1 · &gt;M1</span>
-                <span><i className="legend-line probability-r2" /> RA2 · &gt;M5</span>
-                <span><i className="legend-line probability-r3" /> RA3 · &gt;X1</span>
+                <span><i className="legend-line probability-r1" /> p-M1+</span>
+                <span><i className="legend-line probability-r2" /> p-M5+</span>
+                <span><i className="legend-line probability-r3" /> p-X1+</span>
               </div>
               <FlareProbabilityChart points={flareProbabilityPoints} />
               <div className="panel-footer">
@@ -292,17 +292,26 @@ function App() {
           </div>
 
           <aside className="side-column">
-            <article className="panel image-panel placeholder-panel">
-              <PanelHeader eyebrow="OVRO–LWA IMAGING" title="Live Radio Image" meta="Reserved" />
-              <div className="image-placeholder" role="img" aria-label="Placeholder for future live OVRO-LWA solar image">
-                <div className="placeholder-grid" />
-                <div className="solar-orbit"><span /></div>
-                <svg viewBox="0 0 64 64" aria-hidden="true">
-                  <path d="M12 51h40M32 51V31M21 31a11 11 0 0 0 22 0M18 18l14 13 14-13" />
-                </svg>
-                <strong>Imaging feed reserved</strong>
-                <p>The panel is ready for the live OVRO–LWA image pipeline.</p>
-                <span className="coming-soon">Coming soon</span>
+            <article className="panel image-panel goes-image-panel">
+              <PanelHeader eyebrow="OVRO–LWA" title="Live Radio Image" meta="30 · 45 · 60 · 75 MHz" />
+              <div className="radio-image-grid">
+                {(radioImages?.images ?? []).map((img) => (
+                  <figure key={img.target_mhz}>
+                    <img
+                      src={`/live${img.image_url}`}
+                      alt={`OVRO-LWA ${img.target_mhz} MHz solar radio image`}
+                      title={`${Number(img.freq_mhz).toFixed(1)} MHz · ${img.date_obs} UT · ${img.unit}`}
+                    />
+                    <figcaption>{img.target_mhz} MHz</figcaption>
+                  </figure>
+                ))}
+                {!(radioImages?.images ?? []).length && (
+                  <p className="radio-image-empty">Waiting for radio images…</p>
+                )}
+              </div>
+              <div className="panel-footer">
+                <span>Slow image pipeline</span>
+                <span>Refresh: 1 min</span>
               </div>
             </article>
 
