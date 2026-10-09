@@ -7,6 +7,7 @@ import {
   type FlareProbabilityRecord,
   type GoesPayload,
   type HealthPayload,
+  type LwaRadioImagesPayload,
   type SpectrumFrame,
   type SpectrumHistory,
 } from './api';
@@ -19,6 +20,7 @@ const GOES_XRAY_POLL_INTERVAL_MS = 30_000;
 const FLARE_NOWCAST_POLL_INTERVAL_MS = 10_000;
 const GOES_IMAGE_REFRESH_INTERVAL_MS = 5 * 60_000;
 const LWA_IMAGE_REFRESH_INTERVAL_MS = 60_000;
+const RADIO_IMAGES_POLL_INTERVAL_MS = 60_000;
 
 export function useDashboardData() {
   const [frames, setFrames] = useState<SpectrumFrame[]>([]);
@@ -30,6 +32,7 @@ export function useDashboardData() {
   const [ephemeris, setEphemeris] = useState<EphemerisPayload | null>(null);
   const [goesImageRefreshToken, setGoesImageRefreshToken] = useState(() => Date.now());
   const [lwaImageRefreshToken, setLwaImageRefreshToken] = useState(() => Date.now());
+  const [radioImages, setRadioImages] = useState<LwaRadioImagesPayload | null>(null);
   const [lastFrameAt, setLastFrameAt] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [frameCount, setFrameCount] = useState(0);
@@ -217,6 +220,26 @@ export function useDashboardData() {
     return () => window.clearInterval(timer);
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadRadioImages() {
+      try {
+        const payload = await fetchJson<LwaRadioImagesPayload>('/api/lwa/radio-images');
+        if (!cancelled) setRadioImages(payload);
+      } catch {
+        /* keep the last payload; the panel shows a placeholder until the first success */
+      }
+    }
+
+    loadRadioImages();
+    const timer = window.setInterval(loadRadioImages, RADIO_IMAGES_POLL_INTERVAL_MS);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, []);
+
   const lightCurve = useMemo(
     () =>
       frames.map((frame) => {
@@ -232,6 +255,7 @@ export function useDashboardData() {
     goes,
     goesImageRefreshToken,
     lwaImageRefreshToken,
+    radioImages,
     flareNowcast,
     flareUpdatedAt,
     flareProbabilityPoints,

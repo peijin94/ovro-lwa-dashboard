@@ -41,6 +41,9 @@ LWA_IMAGE_URL = os.environ.get(
     "LWA_IMAGE_URL",
     "https://ovsa.njit.edu/lwa-data/latest_slow_image.png",
 )
+LIVE_RADIO_IMAGES_URL = os.environ.get(
+    "LIVE_RADIO_IMAGES_URL", f"{LIVE_SPECTRUM_URL}/radio-images"
+)
 EPHEMERIS_URL = os.environ.get(
     "EPHEMERIS_URL", "https://ovsa.njit.edu/api/ephm/info"
 )
@@ -502,6 +505,15 @@ async def lwa_image() -> Response:
         media_type=_lwa_image_cache["content_type"],
         headers={"Cache-Control": "public, max-age=45"},
     )
+
+
+@app.get("/api/lwa/radio-images")
+async def lwa_radio_images() -> JSONResponse:
+    """Proxy the live slow-imaging panels (30/45/60/75 MHz) from the stream receiver."""
+    payload = await _get_json(LIVE_RADIO_IMAGES_URL, timeout=10.0)
+    if not isinstance(payload, dict) or not isinstance(payload.get("images"), list):
+        raise HTTPException(status_code=502, detail="Invalid radio-images response")
+    return JSONResponse(payload, headers={"Cache-Control": "no-store"})
 
 
 @app.get("/", include_in_schema=False)

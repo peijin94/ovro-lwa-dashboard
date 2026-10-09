@@ -90,7 +90,7 @@ function App() {
     lightCurve,
     goes,
     goesImageRefreshToken,
-    lwaImageRefreshToken,
+    radioImages,
     flareNowcast,
     flareUpdatedAt,
     flareProbabilityPoints,
@@ -293,15 +293,21 @@ function App() {
 
           <aside className="side-column">
             <article className="panel image-panel goes-image-panel">
-              <PanelHeader eyebrow="OVRO–LWA" title="Live Radio Image" meta="Near real time" />
-              <div className="goes-image-wrap">
-                <img
-                  src={`${apiUrl('/api/lwa/image')}?v=${lwaImageRefreshToken}`}
-                  alt="Latest OVRO-LWA slow solar radio image"
-                />
-                <div className="image-crosshair horizontal" />
-                <div className="image-crosshair vertical" />
-                <span className="image-live-badge"><i /> LWA LIVE</span>
+              <PanelHeader eyebrow="OVRO–LWA" title="Live Radio Image" meta="30 · 45 · 60 · 75 MHz" />
+              <div className="radio-image-grid">
+                {(radioImages?.images ?? []).map((img) => (
+                  <figure key={img.target_mhz}>
+                    <img
+                      src={`/live${img.image_url}`}
+                      alt={`OVRO-LWA ${img.target_mhz} MHz solar radio image`}
+                      title={`${Number(img.freq_mhz).toFixed(1)} MHz · ${img.date_obs} UT · ${img.unit}`}
+                    />
+                    <figcaption>{img.target_mhz} MHz</figcaption>
+                  </figure>
+                ))}
+                {!(radioImages?.images ?? []).length && (
+                  <p className="radio-image-empty">Waiting for radio images…</p>
+                )}
               </div>
               <div className="panel-footer">
                 <span>Slow image pipeline</span>

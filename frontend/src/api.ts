@@ -49,6 +49,22 @@ export interface EphemerisPayload {
   updated: string | null;
 }
 
+export interface LwaRadioImage {
+  target_mhz: number;
+  freq_mhz: number;
+  date_obs: string;
+  unit: string;
+  image_url: string;
+}
+
+export interface LwaRadioImagesPayload {
+  status?: string;
+  version?: string;
+  poll_interval_seconds?: number;
+  observation_time?: string;
+  images: LwaRadioImage[];
+}
+
 export interface FlareProbability {
   probability: number;
   p_low: number;
